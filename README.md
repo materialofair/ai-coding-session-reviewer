@@ -198,8 +198,6 @@ Special thanks to [claude-code-history-viewer](https://github.com/jhlee0409/clau
 
 <div align="center">
 
-If this project helps you, consider giving it a star!
-
 [![Star History Chart](https://api.star-history.com/svg?repos=materialofair/ai-coding-session-reviewer&type=Date)](https://star-history.com/#materialofair/ai-coding-session-reviewer&Date)
 
 </div>

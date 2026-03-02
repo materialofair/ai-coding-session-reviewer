@@ -193,8 +193,6 @@ pnpm tauri:build     # 正式版建置
 
 <div align="center">
 
-如果這個專案對您有幫助，請考慮給它一顆星星！
-
 [![Star History Chart](https://api.star-history.com/svg?repos=materialofair/ai-coding-session-reviewer&type=Date)](https://star-history.com/#materialofair/ai-coding-session-reviewer&Date)
 
 </div>

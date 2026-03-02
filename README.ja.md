@@ -193,8 +193,6 @@ pnpm tauri:build     # プロダクションビルド
 
 <div align="center">
 
-このプロジェクトが役に立ったら、スターをお願いします！
-
 [![Star History Chart](https://api.star-history.com/svg?repos=materialofair/ai-coding-session-reviewer&type=Date)](https://star-history.com/#materialofair/ai-coding-session-reviewer&Date)
 
 </div>
