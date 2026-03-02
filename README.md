@@ -41,6 +41,7 @@ Desktop app that reads conversation history from Claude Code, Codex CLI, and Ope
 - [Data Privacy](#data-privacy)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
 - [License](#license)
 
 ## Features
@@ -48,6 +49,7 @@ Desktop app that reads conversation history from Claude Code, Codex CLI, and Ope
 | Feature | Description |
 |---------|-------------|
 | **Multi-Provider** | Unified viewer for Claude Code, Codex CLI, and OpenCode conversations |
+| **AI Assistant** | Built-in assistant to explain sessions, summarize conversations, and answer project-level questions |
 | **Conversation Browser** | Navigate conversations by project/session with worktree grouping |
 | **Global Search** | Search across all conversations instantly |
 | **Analytics Dashboard** | Dual-mode token stats (billing vs conversation), cost breakdown, and provider distribution charts |
@@ -194,6 +196,10 @@ Contributions are welcome! Here's how to get started:
 6. Open a Pull Request
 
 See [Development Commands](CLAUDE.md#development-commands) for the full list of available commands.
+
+## Acknowledgements
+
+Special thanks to [claude-code-history-viewer](https://github.com/jhlee0409/claude-code-history-viewer) for the original inspiration and foundation.
 
 ## License
 
