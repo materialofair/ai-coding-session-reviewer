@@ -11,7 +11,6 @@
 [![License](https://img.shields.io/github/license/materialofair/ai-coding-session-reviewer)](LICENSE)
 [![Rust Tests](https://img.shields.io/github/actions/workflow/status/materialofair/ai-coding-session-reviewer/rust-tests.yml?label=Rust%20Tests)](https://github.com/materialofair/ai-coding-session-reviewer/actions/workflows/rust-tests.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/materialofair/ai-coding-session-reviewer)](https://github.com/materialofair/ai-coding-session-reviewer/commits/main)
-![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 
 [網站](https://github.com/materialofair/ai-coding-session-reviewer) · [下載](https://github.com/materialofair/ai-coding-session-reviewer/releases) · [回報問題](https://github.com/materialofair/ai-coding-session-reviewer/issues)
 
@@ -24,14 +23,6 @@
 
 ---
 
-<p align="center">
-  <img width="49%" alt="Conversation History" src="https://github.com/user-attachments/assets/9a18304d-3f08-4563-a0e6-dd6e6dfd227e" />
-  <img width="49%" alt="Analytics Dashboard" src="https://github.com/user-attachments/assets/0f869344-4a7c-4f1f-9de3-701af10fc255" />
-</p>
-<p align="center">
-  <img width="49%" alt="Token Statistics" src="https://github.com/user-attachments/assets/d30f3709-1afb-4f76-8f06-1033a3cb7f4a" />
-  <img width="49%" alt="Recent Edits" src="https://github.com/user-attachments/assets/8c9fbff3-55dd-4cfc-a135-ddeb719f3057" />
-</p>
 
 ## 目錄
 
@@ -73,8 +64,6 @@
 | 平台 | 下載 |
 |----------|----------|
 | macOS (通用版) | [`.dmg`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest) |
-| Windows (x64) | [`.exe`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest) |
-| Linux (x64) | [`.AppImage`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest) |
 
 ### Homebrew (macOS)
 
