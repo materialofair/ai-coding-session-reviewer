@@ -1,0 +1,430 @@
+/**
+ * Project Slice
+ *
+ * Handles project/folder scanning and session listing.
+ */
+
+import { invoke } from "@tauri-apps/api/core";
+import { load } from "@tauri-apps/plugin-store";
+import type { ClaudeProject, ClaudeSession, AppError, UserMetadata } from "../../types";
+import { AppErrorType } from "../../types";
+import type { StateCreator } from "zustand";
+import type { FullAppStore } from "./types";
+import {
+  detectWorktreeGroupsHybrid,
+  groupProjectsByDirectory,
+  type WorktreeGroupingResult,
+  type DirectoryGroupingResult,
+} from "../../utils/worktreeUtils";
+import type { GroupingMode } from "../../types/metadata.types";
+import { DEFAULT_PROVIDER_ID } from "../../utils/providers";
+import { INITIAL_PAGINATION } from "./messageSlice";
+import { nextRequestId, getRequestId } from "../../utils/requestId";
+
+// ============================================================================
+// State Interface
+// ============================================================================
+
+export interface ProjectSliceState {
+  claudePath: string;
+  projects: ClaudeProject[];
+  selectedProject: ClaudeProject | null;
+  sessions: ClaudeSession[];
+  selectedSession: ClaudeSession | null;
+  isLoading: boolean;
+  isLoadingProjects: boolean;
+  isLoadingSessions: boolean;
+  error: AppError | null;
+}
+
+export interface ProjectSliceActions {
+  initializeApp: () => Promise<void>;
+  scanProjects: () => Promise<void>;
+  selectProject: (project: ClaudeProject) => Promise<void>;
+  clearProjectSelection: () => void;
+  setClaudePath: (path: string) => Promise<void>;
+  setError: (error: AppError | null) => void;
+  setSelectedSession: (session: ClaudeSession | null) => void;
+  setSessions: (sessions: ClaudeSession[]) => void;
+  getGroupedProjects: () => WorktreeGroupingResult;
+  getDirectoryGroupedProjects: () => DirectoryGroupingResult;
+  getEffectiveGroupingMode: () => GroupingMode;
+}
+
+export type ProjectSlice = ProjectSliceState & ProjectSliceActions;
+
+// ============================================================================
+// Initial State
+// ============================================================================
+
+const initialProjectState: ProjectSliceState = {
+  claudePath: "",
+  projects: [],
+  selectedProject: null,
+  sessions: [],
+  selectedSession: null,
+  isLoading: false,
+  isLoadingProjects: false,
+  isLoadingSessions: false,
+  error: null,
+};
+
+// ============================================================================
+// Helper
+// ============================================================================
+
+const isTauriAvailable = () => {
+  try {
+    return typeof window !== "undefined" && typeof invoke === "function";
+  } catch {
+    return false;
+  }
+};
+
+const compareLastModifiedDesc = (a: string, b: string): number => {
+  const aTs = Date.parse(a);
+  const bTs = Date.parse(b);
+  const aValid = Number.isFinite(aTs);
+  const bValid = Number.isFinite(bTs);
+
+  if (aValid && bValid) return bTs - aTs;
+  if (aValid) return -1;
+  if (bValid) return 1;
+  return b.localeCompare(a);
+};
+
+const makeProjectComparator = (metadata: UserMetadata) => {
+  return (a: ClaudeProject, b: ClaudeProject): number => {
+    const aFeatured = metadata.projects[a.actual_path]?.featured === true;
+    const bFeatured = metadata.projects[b.actual_path]?.featured === true;
+
+    if (aFeatured !== bFeatured) {
+      return aFeatured ? -1 : 1;
+    }
+
+    return compareLastModifiedDesc(a.last_modified, b.last_modified);
+  };
+};
+
+const sortProjectsForSidebar = (
+  projects: ClaudeProject[],
+  metadata: UserMetadata
+): ClaudeProject[] => {
+  const comparator = makeProjectComparator(metadata);
+  return [...projects].sort(comparator);
+};
+
+// ============================================================================
+// Slice Creator
+// ============================================================================
+
+export const createProjectSlice: StateCreator<
+  FullAppStore,
+  [],
+  [],
+  ProjectSlice
+> = (set, get) => ({
+  ...initialProjectState,
+
+  initializeApp: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      if (!isTauriAvailable()) {
+        throw new Error(
+          "Tauri API를 사용할 수 없습니다. 데스크톱 앱에서 실행해주세요."
+        );
+      }
+
+      // Try to load saved settings first
+      try {
+        const store = await load("settings.json", {
+          autoSave: false,
+          defaults: {},
+        });
+        const savedPath = await store.get<string>("claudePath");
+
+        if (savedPath) {
+          const isValid = await invoke<boolean>("validate_claude_folder", {
+            path: savedPath,
+          });
+          if (isValid) {
+            set({ claudePath: savedPath });
+            await get().loadMetadata();
+            await get().detectProviders();
+            await get().scanProjects();
+            return;
+          }
+        }
+      } catch {
+        console.log("No saved settings found");
+      }
+
+      // Try default path
+      const claudePath = await invoke<string>("get_claude_folder_path");
+      set({ claudePath });
+      await get().loadMetadata();
+      await get().detectProviders();
+      await get().scanProjects();
+    } catch (error) {
+      console.error("Failed to initialize app:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      let errorType = AppErrorType.UNKNOWN;
+      let message = errorMessage;
+
+      if (errorMessage.includes("CLAUDE_FOLDER_NOT_FOUND:")) {
+        errorType = AppErrorType.CLAUDE_FOLDER_NOT_FOUND;
+        message = errorMessage.split(":")[1] || errorMessage;
+      } else if (errorMessage.includes("PERMISSION_DENIED:")) {
+        errorType = AppErrorType.PERMISSION_DENIED;
+        message = errorMessage.split(":")[1] || errorMessage;
+      } else if (errorMessage.includes("Tauri API")) {
+        errorType = AppErrorType.TAURI_NOT_AVAILABLE;
+      }
+
+      set({ error: { type: errorType, message } });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // NOTE: scanProjects always loads ALL available providers' projects.
+  // Filtering by activeProviders happens client-side in the ProjectTree UI.
+  // This is intentionally asymmetric with loadGlobalStats (which filters server-side)
+  // because project scanning is fast and we want instant client-side tab switching,
+  // whereas global stats aggregation is expensive and benefits from server-side filtering.
+  scanProjects: async () => {
+    const requestId = nextRequestId("scanProjects");
+    const { claudePath, providers } = get();
+    if (!claudePath) return;
+
+    set({ isLoadingProjects: true, error: null });
+    try {
+      const start = performance.now();
+      const availableProviders = providers
+        .filter((provider) => provider.is_available)
+        .map((provider) => provider.id);
+      const scanProviders = availableProviders.length > 0 ? availableProviders : [DEFAULT_PROVIDER_ID];
+      const hasNonClaudeProviders = scanProviders.some((provider) => provider !== DEFAULT_PROVIDER_ID);
+      const projects = hasNonClaudeProviders
+        ? await invoke<ClaudeProject[]>("scan_all_projects", {
+            claudePath,
+            activeProviders: scanProviders,
+          })
+        : await invoke<ClaudeProject[]>("scan_projects", {
+            claudePath,
+          });
+      const duration = performance.now() - start;
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Frontend] scanProjects: ${projects.length}개 프로젝트, ${duration.toFixed(1)}ms`
+        );
+      }
+      if (requestId !== getRequestId("scanProjects")) {
+        return;
+      }
+      const sortedProjects = sortProjectsForSidebar(projects, get().userMetadata);
+      set({ projects: sortedProjects });
+
+      // Auto-enable worktree grouping if worktrees are detected
+      // Only auto-enable if user has never explicitly set the preference
+      const { userMetadata, updateUserSettings } = get();
+      const worktreeGrouping = userMetadata?.settings?.worktreeGrouping ?? false;
+      const userHasSet = userMetadata?.settings?.worktreeGroupingUserSet ?? false;
+      if (!worktreeGrouping && !userHasSet && projects.length > 0) {
+        const { groups } = detectWorktreeGroupsHybrid(projects);
+        if (groups.length > 0) {
+          if (requestId !== getRequestId("scanProjects")) {
+            return;
+          }
+          // Worktrees detected - auto-enable grouping
+          await updateUserSettings({ worktreeGrouping: true });
+          if (requestId !== getRequestId("scanProjects")) {
+            return;
+          }
+          if (import.meta.env.DEV) {
+            console.log(
+              `[Worktree] Auto-enabled grouping: ${groups.length} groups detected`
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (requestId !== getRequestId("scanProjects")) {
+        return;
+      }
+      console.error("Failed to scan projects:", error);
+      set({ error: { type: AppErrorType.UNKNOWN, message: String(error) } });
+    } finally {
+      if (requestId === getRequestId("scanProjects")) {
+        set({ isLoadingProjects: false });
+      }
+    }
+  },
+
+  selectProject: async (project: ClaudeProject) => {
+    set({
+      selectedProject: project,
+      sessions: [],
+      selectedSession: null,
+      isLoadingSessions: true,
+    });
+    try {
+      const provider = project.provider ?? "claude";
+      const sessions = provider !== "claude"
+        ? await invoke<ClaudeSession[]>("load_provider_sessions", {
+            provider,
+            projectPath: project.path,
+            excludeSidechain: get().excludeSidechain,
+          })
+        : await invoke<ClaudeSession[]>("load_project_sessions", {
+            projectPath: project.path,
+            excludeSidechain: get().excludeSidechain,
+          });
+      set({ sessions });
+    } catch (error) {
+      console.error("Failed to load project sessions:", error);
+      set({ error: { type: AppErrorType.UNKNOWN, message: String(error) } });
+    } finally {
+      set({ isLoadingSessions: false });
+    }
+  },
+
+  clearProjectSelection: () => {
+    set({
+      selectedProject: null,
+      selectedSession: null,
+      sessions: [],
+      messages: [],
+      pagination: { ...INITIAL_PAGINATION },
+      isLoadingMessages: false,
+      isLoadingSessions: false,
+    });
+
+    get().clearSessionSearch();
+    get().clearTokenStats();
+    get().resetAnalytics();
+    get().clearBoard();
+    get().setDateFilter({ start: null, end: null });
+    get().clearTargetMessage();
+  },
+
+  setClaudePath: async (path: string) => {
+    set({ claudePath: path });
+
+    try {
+      const store = await load("settings.json", {
+        autoSave: false,
+        defaults: {},
+      });
+      await store.set("claudePath", path);
+      await store.save();
+    } catch (error) {
+      console.error("Failed to save claude path:", error);
+    }
+  },
+
+  setError: (error: AppError | null) => {
+    set({ error });
+  },
+
+  setSelectedSession: (session: ClaudeSession | null) => {
+    set({ selectedSession: session });
+  },
+
+  setSessions: (sessions: ClaudeSession[]) => {
+    set({ sessions });
+  },
+
+  getGroupedProjects: () => {
+    const { projects, userMetadata, isProjectHidden } = get();
+    const settings = userMetadata?.settings;
+
+    // Determine effective grouping mode (same logic as getEffectiveGroupingMode)
+    const effectiveMode = settings?.groupingMode ?? (settings?.worktreeGrouping ? "worktree" : "none");
+
+    // Filter out hidden projects first (use actual_path for pattern matching)
+    const visibleProjects = sortProjectsForSidebar(
+      projects.filter((p) => !isProjectHidden(p.actual_path)),
+      userMetadata
+    );
+
+    // Only group when worktree mode is active
+    if (effectiveMode !== "worktree") {
+      // When worktree grouping is disabled, return all visible projects as ungrouped
+      return { groups: [], ungrouped: visibleProjects };
+    }
+
+    // Use hybrid detection: git-based (100% accurate) + heuristic fallback
+    const result = detectWorktreeGroupsHybrid(visibleProjects);
+
+    // Filter hidden children from worktree groups
+    const filtered = result.groups.map((group) => ({
+      ...group,
+      children: group.children.filter((child) => !isProjectHidden(child.actual_path)),
+    }));
+
+    // Keep groups with visible children; rescue orphaned parents to ungrouped
+    // (only if the parent itself is not hidden)
+    const comparator = makeProjectComparator(userMetadata);
+    result.groups = filtered
+      .filter((group) => group.children.length > 0)
+      .map((group) => ({
+        ...group,
+        children: [...group.children].sort(comparator),
+      }))
+      .sort((a, b) => comparator(a.parent, b.parent));
+    const orphanedParents = filtered
+      .filter((group) => group.children.length === 0)
+      .map((group) => group.parent)
+      .filter((parent) => !isProjectHidden(parent.actual_path));
+    result.ungrouped = [...result.ungrouped, ...orphanedParents].sort(comparator);
+
+    return result;
+  },
+
+  getDirectoryGroupedProjects: () => {
+    const { projects, isProjectHidden, userMetadata } = get();
+
+    // Filter out hidden projects first (use actual_path for pattern matching)
+    const visibleProjects = projects.filter((p) => !isProjectHidden(p.actual_path));
+    const result = groupProjectsByDirectory(visibleProjects);
+    const comparator = makeProjectComparator(userMetadata);
+
+    result.groups = result.groups
+      .map((group) => ({
+        ...group,
+        projects: [...group.projects].sort(comparator),
+      }))
+      .sort((a, b) => {
+        const aTop = a.projects[0];
+        const bTop = b.projects[0];
+        if (aTop && bTop) {
+          return comparator(aTop, bTop);
+        }
+        if (aTop) return -1;
+        if (bTop) return 1;
+        return a.path.localeCompare(b.path);
+      });
+
+    return result;
+  },
+
+  getEffectiveGroupingMode: (): GroupingMode => {
+    const { userMetadata } = get();
+    const settings = userMetadata?.settings;
+
+    // If explicit groupingMode is set, use it
+    if (settings?.groupingMode) {
+      return settings.groupingMode;
+    }
+
+    // Legacy: if worktreeGrouping is true, use "worktree" mode
+    if (settings?.worktreeGrouping) {
+      return "worktree";
+    }
+
+    return "none";
+  },
+});

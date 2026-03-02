@@ -1,0 +1,22 @@
+{
+  "recentEdits.cancel": "Cancel",
+  "recentEdits.confirmRestore": "Restore",
+  "recentEdits.confirmRestoreMessage": "This will overwrite the file at:\n{{path}}\n\nAre you sure you want to continue?",
+  "recentEdits.confirmRestoreTitle": "Restore File?",
+  "recentEdits.copyContent": "Copy Content",
+  "recentEdits.created": "Created",
+  "recentEdits.description": "Recover accidentally deleted files by viewing the latest content after changes",
+  "recentEdits.edited": "Edited",
+  "recentEdits.footerInfo": "Showing the latest content for each file. Click restore to write the file back to disk.",
+  "recentEdits.lines": "lines",
+  "recentEdits.loading": "Loading recent edits...",
+  "recentEdits.noEdits": "No Recent Edits",
+  "recentEdits.noEditsDescription": "No file edits or creations found in this project",
+  "recentEdits.noSearchResults": "No files match your search",
+  "recentEdits.restoreError": "Failed to restore file",
+  "recentEdits.restoreFile": "Restore File",
+  "recentEdits.searchPlaceholder": "Search by file path or content...",
+  "recentEdits.showMore": "Show {{count}} more",
+  "recentEdits.stats": "{{files}} files, {{edits}} total edits",
+  "recentEdits.title": "Recent Edits"
+}
