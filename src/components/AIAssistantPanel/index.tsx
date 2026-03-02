@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight } from "lucide-react";
+import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight, Plus } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useAiAssistant } from "../../hooks/useAiAssistant";
@@ -19,6 +19,10 @@ export function AIAssistantPanel() {
     isAiStreaming,
     aiDataSourceProvider,
     aiAnalysisScope,
+    aiChatSessions,
+    activeAiChatSessionId,
+    createAiChatSession,
+    switchAiChatSession,
     setAiAnalysisScope,
   } = useAppStore((s) => ({
     isAiPanelOpen: s.isAiPanelOpen,
@@ -29,6 +33,10 @@ export function AIAssistantPanel() {
     isAiStreaming: s.isAiStreaming,
     aiDataSourceProvider: s.aiDataSourceProvider,
     aiAnalysisScope: s.aiAnalysisScope,
+    aiChatSessions: s.aiChatSessions,
+    activeAiChatSessionId: s.activeAiChatSessionId,
+    createAiChatSession: s.createAiChatSession,
+    switchAiChatSession: s.switchAiChatSession,
     setAiAnalysisScope: s.setAiAnalysisScope,
   }));
 
@@ -109,6 +117,33 @@ export function AIAssistantPanel() {
                 ? t("aiAssistant.status.analyzing")
                 : t("aiAssistant.status.ready")}
           </span>
+        </div>
+
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <select
+            className="h-6 flex-1 rounded border border-border bg-background px-2 text-[10px] text-foreground focus:outline-none"
+            value={activeAiChatSessionId}
+            onChange={(e) => switchAiChatSession(e.target.value)}
+            disabled={isAiStreaming}
+            aria-label={t("aiAssistant.chat.sessionSelect")}
+          >
+            {aiChatSessions.map((session) => (
+              <option key={session.id} value={session.id}>
+                {session.title}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-1.5 text-[10px] gap-1"
+            onClick={() => createAiChatSession(t("aiAssistant.chat.newSessionDefault"))}
+            disabled={isAiStreaming || isAiAnalyzing}
+            title={t("aiAssistant.chat.newSession")}
+          >
+            <Plus className="w-3 h-3" />
+            {t("aiAssistant.chat.newSession")}
+          </Button>
         </div>
 
         <div className="mt-1.5 flex items-center justify-between gap-2">

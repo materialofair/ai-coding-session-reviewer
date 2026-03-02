@@ -23,6 +23,11 @@
 
 ---
 
+## 快速預覽
+
+一圖了解核心流程：專案層級復盤、多工作階段導覽、AI 助手分析可在同一畫面完成。
+
+![AI Coding Session Reviewer Overview](assets/screenshots/app-overview.png)
 
 ## 目錄
 

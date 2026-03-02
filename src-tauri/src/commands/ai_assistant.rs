@@ -62,6 +62,21 @@ pub struct UnresolvedIssue {
     pub severity: String,
 }
 
+#[derive(Debug, Clone)]
+struct MixedContext {
+    file_manifest: String,
+    distilled_context: String,
+    file_count: usize,
+    extracted_line_count: usize,
+    truncated: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ExtractedSnippet {
+    text: String,
+    high_signal: bool,
+}
+
 // ============ Provider Session Path Discovery ============
 
 /// Return all session file paths for a given AI provider.
@@ -120,7 +135,8 @@ fn collect_files_by_ext(dir: &std::path::Path, ext: &str) -> Vec<String> {
 static CLI_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
 
 fn get_cli_semaphore() -> &'static Semaphore {
-    CLI_SEMAPHORE.get_or_init(|| Semaphore::new(1))
+    // Allow limited parallel requests to reduce queueing latency.
+    CLI_SEMAPHORE.get_or_init(|| Semaphore::new(2))
 }
 
 // ============ Commands ============
@@ -179,7 +195,7 @@ async fn get_cli_version(cli_name: &str) -> Result<String, String> {
 pub async fn analyze_session(
     app_handle: AppHandle,
     session_paths: Vec<String>,
-    analysis_type: String, // "summary" | "repeated" | "unresolved"
+    analysis_type: String, // "summary" | "repeated" | "unresolved" | "prompt_skill_optimization"
     provider: String,      // "claude" | "codex" | "opencode"
     request_id: String,
 ) -> Result<(), String> {
@@ -190,8 +206,8 @@ pub async fn analyze_session(
 
     let start = Instant::now();
 
-    let context = build_session_context(&session_paths, &analysis_type)?;
-    if context.trim().is_empty() {
+    let mixed_context = build_mixed_context(&session_paths, &analysis_type)?;
+    if mixed_context.distilled_context.trim().is_empty() {
         let _ = app_handle.emit(
             "ai_stream_error",
             StreamError {
@@ -204,7 +220,7 @@ pub async fn analyze_session(
         );
         return Ok(());
     }
-    let prompt = build_analysis_prompt(&analysis_type, &context);
+    let prompt = build_analysis_prompt(&analysis_type, &mixed_context);
     let cli_exe = get_cli_executable(&provider);
 
     stream_cli_output(&app_handle, &cli_exe, &prompt, &request_id, start).await
@@ -226,9 +242,9 @@ pub async fn chat_with_ai(
 
     let start = Instant::now();
 
-    let context = build_session_context(&context_session_paths, "chat")?;
+    let mixed_context = build_mixed_context(&context_session_paths, "chat")?;
     // context may be empty when no session is selected or paths are empty — that's fine for chat
-    let prompt = build_chat_prompt(&messages, &context);
+    let prompt = build_chat_prompt(&messages, &mixed_context);
     let cli_exe = get_cli_executable(&provider);
 
     stream_cli_output(&app_handle, &cli_exe, &prompt, &request_id, start).await
@@ -410,29 +426,66 @@ fn get_cli_executable(provider: &str) -> String {
     }
 }
 
-fn build_session_context(session_paths: &[String], _analysis_type: &str) -> Result<String, String> {
-    let mut lines = Vec::new();
-    let max_chars = 24_000_usize;
+fn build_mixed_context(
+    session_paths: &[String],
+    analysis_type: &str,
+) -> Result<MixedContext, String> {
+    let mut high_signal_lines = Vec::new();
+    let mut normal_lines = Vec::new();
+    let mut manifest_lines = Vec::new();
+    let max_chars = 32_000_usize;
     let mut total = 0_usize;
+    let mut extracted_line_count = 0_usize;
+    let mut truncated = false;
+    let focus_prompt_skill = analysis_type == "prompt_skill_optimization";
 
-    'outer: for path in session_paths {
+    for path in session_paths {
         let content =
             std::fs::read_to_string(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
 
+        let mut file_extracted = 0_usize;
         for line in content.lines() {
             if let Ok(val) = serde_json::from_str::<serde_json::Value>(line) {
-                if let Some(text) = extract_text_from_message(&val) {
-                    if total + text.len() > max_chars {
-                        break 'outer;
+                for snippet in extract_snippets_from_message(&val) {
+                    if focus_prompt_skill && !snippet.high_signal {
+                        continue;
                     }
-                    total += text.len();
-                    lines.push(text);
+                    if total + snippet.text.len() > max_chars {
+                        truncated = true;
+                        break;
+                    }
+                    total += snippet.text.len();
+                    extracted_line_count += 1;
+                    file_extracted += 1;
+                    if snippet.high_signal {
+                        high_signal_lines.push(snippet.text);
+                    } else {
+                        normal_lines.push(snippet.text);
+                    }
                 }
             }
+            if truncated {
+                break;
+            }
+        }
+        manifest_lines.push(format!("- {path} (extracted_lines: {file_extracted})"));
+        if truncated {
+            break;
         }
     }
 
-    Ok(lines.join("\n"))
+    let mut lines = high_signal_lines;
+    if !focus_prompt_skill {
+        lines.extend(normal_lines);
+    }
+
+    Ok(MixedContext {
+        file_manifest: manifest_lines.join("\n"),
+        distilled_context: lines.join("\n"),
+        file_count: session_paths.len(),
+        extracted_line_count,
+        truncated,
+    })
 }
 
 fn extract_text_from_message(val: &serde_json::Value) -> Option<String> {
@@ -514,36 +567,230 @@ fn extract_text_from_message(val: &serde_json::Value) -> Option<String> {
     None
 }
 
-fn build_analysis_prompt(analysis_type: &str, context: &str) -> String {
+fn extract_snippets_from_message(val: &serde_json::Value) -> Vec<ExtractedSnippet> {
+    let mut snippets = Vec::new();
+
+    if let Some(content) = val.pointer("/message/content").and_then(|v| v.as_str()) {
+        let role = val
+            .pointer("/message/role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let text = format!("[{role}]: {content}");
+        snippets.push(ExtractedSnippet {
+            high_signal: is_high_signal(role, &text),
+            text,
+        });
+        return snippets;
+    }
+
+    if let Some(arr) = val.pointer("/message/content").and_then(|v| v.as_array()) {
+        let role = val
+            .pointer("/message/role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+
+        let text = arr
+            .iter()
+            .filter_map(|item| item.get("text").and_then(|t| t.as_str()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if !text.trim().is_empty() {
+            let line = format!("[{role}]: {text}");
+            snippets.push(ExtractedSnippet {
+                high_signal: is_high_signal(role, &line),
+                text: line,
+            });
+        }
+
+        for item in arr {
+            let item_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            if item_type == "tool_use" {
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown_tool");
+                snippets.push(ExtractedSnippet {
+                    text: format!("[tool_use]: {name}"),
+                    high_signal: true,
+                });
+            }
+            if item_type == "tool_result" {
+                let is_error = item
+                    .get("is_error")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                let result_text = item
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .chars()
+                    .take(240)
+                    .collect::<String>();
+                let tag = if is_error {
+                    "[tool_result_error]"
+                } else {
+                    "[tool_result]"
+                };
+                if !result_text.is_empty() {
+                    snippets.push(ExtractedSnippet {
+                        text: format!("{tag}: {result_text}"),
+                        high_signal: true,
+                    });
+                }
+            }
+        }
+
+        if !snippets.is_empty() {
+            return snippets;
+        }
+    }
+
+    let item_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+    if item_type == "message" {
+        let role = val
+            .get("role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+
+        if let Some(content) = val.get("content").and_then(|v| v.as_str()) {
+            if !content.trim().is_empty() {
+                let text = format!("[{role}]: {content}");
+                snippets.push(ExtractedSnippet {
+                    high_signal: is_high_signal(role, &text),
+                    text,
+                });
+            }
+        }
+
+        if let Some(arr) = val.get("content").and_then(|v| v.as_array()) {
+            let text = arr
+                .iter()
+                .filter_map(|item| item.get("text").and_then(|t| t.as_str()))
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !text.trim().is_empty() {
+                let line = format!("[{role}]: {text}");
+                snippets.push(ExtractedSnippet {
+                    high_signal: is_high_signal(role, &line),
+                    text: line,
+                });
+            }
+        }
+
+        if !snippets.is_empty() {
+            return snippets;
+        }
+    }
+
+    if let Some(inner) = val.get("item").or_else(|| val.get("event")) {
+        return extract_snippets_from_message(inner);
+    }
+
+    if item_type == "input_items" {
+        if let Some(items) = val.get("items").and_then(|v| v.as_array()) {
+            for item in items {
+                snippets.extend(extract_snippets_from_message(item));
+            }
+        }
+    }
+
+    snippets
+}
+
+fn is_high_signal(role: &str, text: &str) -> bool {
+    if role.eq_ignore_ascii_case("user") {
+        return true;
+    }
+
+    let lower = text.to_lowercase();
+    let prompt_skill_signals = [
+        "prompt",
+        "system prompt",
+        "skill",
+        "skills",
+        "tool",
+        "agent",
+        "timeout",
+        "failed",
+        "error",
+        "optimiz",
+        "/",
+        "$",
+    ];
+    prompt_skill_signals.iter().any(|s| lower.contains(s))
+}
+
+fn build_analysis_prompt(analysis_type: &str, mixed: &MixedContext) -> String {
+    let common_header = format!(
+        "You are analyzing AI coding sessions in HYBRID mode.\n\
+         Use BOTH inputs below:\n\
+         1) Source session file paths (for traceability)\n\
+         2) Distilled extracted conversation context (for speed)\n\n\
+         Session stats:\n\
+         - file_count: {}\n\
+         - extracted_lines: {}\n\
+         - context_truncated: {}\n\n\
+         Source files:\n{}\n\n\
+         Distilled context:\n{}\n\n",
+        mixed.file_count,
+        mixed.extracted_line_count,
+        mixed.truncated,
+        mixed.file_manifest,
+        mixed.distilled_context
+    );
+
     match analysis_type {
-        "summary" => format!(
+        "summary" => format!("{common_header}{}",
             "Please summarize the following AI coding assistant conversation history. \
             Include: main tasks completed, tools used, problems encountered, and final outcomes. \
-            Format as Markdown.\n\n---\n{context}"
+            Format as Markdown."
         ),
-        "repeated" => format!(
+        "repeated" => format!("{common_header}{}",
             "Analyze the following conversation history and identify questions or topics \
             that appear repeatedly. Group similar questions and explain the pattern. \
-            Format as Markdown.\n\n---\n{context}"
+            Format as Markdown."
         ),
-        "unresolved" => format!(
+        "unresolved" => format!("{common_header}{}",
             "Analyze the following conversation history and identify unresolved issues, \
             errors, and failed attempts. For each issue, describe what went wrong and \
-            whether it was eventually resolved. Format as Markdown.\n\n---\n{context}"
+            whether it was eventually resolved. Format as Markdown."
         ),
-        _ => format!("Analyze this conversation:\n\n{context}"),
+        "prompt_skill_optimization" => format!("{common_header}{}",
+            "Analyze these AI coding sessions with a strict focus on user prompts and skill/tool usage quality.\n\
+            Output Markdown with these sections:\n\
+            1) Prompt quality diagnosis (specific problematic prompts + why they underperform)\n\
+            2) Skill/tool usage diagnosis (missing skills, wrong tool sequence, overuse/underuse)\n\
+            3) Optimized prompt rewrites (give concrete rewritten prompts)\n\
+            4) Recommended skill workflow per task type (planning, implementation, debugging, verification)\n\
+            5) Fast-execution playbook (how to reduce timeout/latency while keeping quality)\n\
+            Be concrete, actionable, and reference evidence from the provided context."
+        ),
+        _ => format!("{common_header}Analyze this conversation and provide concise actionable insights in Markdown."),
     }
 }
 
-fn build_chat_prompt(messages: &[ChatMessagePayload], context: &str) -> String {
+fn build_chat_prompt(messages: &[ChatMessagePayload], mixed: &MixedContext) -> String {
     let history: Vec<String> = messages
         .iter()
         .map(|m| format!("[{}]: {}", m.role, m.content))
         .collect();
 
     format!(
-        "Context from conversation history:\n{context}\n\n\
+        "You are answering in HYBRID mode.\n\
+        Prefer the distilled context for speed, and use source file paths for traceability.\n\n\
+        Session stats:\n\
+        - file_count: {}\n\
+        - extracted_lines: {}\n\
+        - context_truncated: {}\n\n\
+        Source files:\n{}\n\n\
+        Distilled context:\n{}\n\n\
         Chat history:\n{}\n\nPlease respond to the last user message.",
+        mixed.file_count,
+        mixed.extracted_line_count,
+        mixed.truncated,
+        mixed.file_manifest,
+        mixed.distilled_context,
         history.join("\n")
     )
 }
@@ -643,7 +890,10 @@ async fn stream_cli_output(
 
     drop(tx);
 
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
+    let total_timeout = Duration::from_secs(20 * 60);
+    let idle_timeout = Duration::from_secs(3 * 60);
+    let total_deadline = tokio::time::Instant::now() + total_timeout;
+    let mut last_activity_at = tokio::time::Instant::now();
     let mut stdout_done = false;
     let mut stderr_done = false;
     let mut stderr_lines: Vec<String> = Vec::new();
@@ -651,23 +901,39 @@ async fn stream_cli_output(
 
     while !(stdout_done && stderr_done) {
         let now = tokio::time::Instant::now();
-        if now >= deadline {
+        if now >= total_deadline {
             let _ = child.kill().await;
             let _ = app_handle.emit(
                 "ai_stream_error",
                 StreamError {
                     request_id: request_id.to_string(),
-                    error: "Analysis timed out".to_string(),
+                    error: "Analysis timed out (total time exceeded 20 minutes)".to_string(),
                     code: "TIMEOUT".to_string(),
                 },
             );
-            return Err("Timeout".to_string());
+            return Err("Total timeout".to_string());
         }
 
-        let remaining = deadline.saturating_duration_since(now);
-        let event = tokio::time::timeout(remaining, rx.recv())
-            .await
-            .map_err(|_| "Timeout while waiting for stream output".to_string())?;
+        if now.duration_since(last_activity_at) >= idle_timeout {
+            let _ = child.kill().await;
+            let _ = app_handle.emit(
+                "ai_stream_error",
+                StreamError {
+                    request_id: request_id.to_string(),
+                    error: "Analysis timed out (no output for 3 minutes)".to_string(),
+                    code: "TIMEOUT".to_string(),
+                },
+            );
+            return Err("Idle timeout".to_string());
+        }
+
+        let remaining_total = total_deadline.saturating_duration_since(now);
+        let remaining_idle = idle_timeout.saturating_sub(now.duration_since(last_activity_at));
+        let wait_for = remaining_total.min(remaining_idle);
+        let event = match tokio::time::timeout(wait_for, rx.recv()).await {
+            Ok(event) => event,
+            Err(_) => continue,
+        };
 
         let Some(event) = event else {
             break;
@@ -675,6 +941,7 @@ async fn stream_cli_output(
 
         match event {
             OutputEvent::StdoutLine(line) => {
+                last_activity_at = tokio::time::Instant::now();
                 let delta = if cli_exe == "claude" {
                     extract_claude_stream_delta(&line, &mut claude_text_state)
                 } else {
@@ -694,6 +961,7 @@ async fn stream_cli_output(
                 }
             }
             OutputEvent::StderrLine(line) => {
+                last_activity_at = tokio::time::Instant::now();
                 if stderr_lines.len() >= 50 {
                     stderr_lines.remove(0);
                 }
@@ -705,20 +973,20 @@ async fn stream_cli_output(
     }
 
     let now = tokio::time::Instant::now();
-    if now >= deadline {
+    if now >= total_deadline {
         let _ = child.kill().await;
         let _ = app_handle.emit(
             "ai_stream_error",
             StreamError {
                 request_id: request_id.to_string(),
-                error: "Analysis timed out".to_string(),
+                error: "Analysis timed out (total time exceeded 20 minutes)".to_string(),
                 code: "TIMEOUT".to_string(),
             },
         );
-        return Err("Timeout".to_string());
+        return Err("Total timeout".to_string());
     }
 
-    let remaining = deadline.saturating_duration_since(now);
+    let remaining = total_deadline.saturating_duration_since(now);
     match tokio::time::timeout(remaining, child.wait()).await {
         Ok(Ok(status)) => {
             if status.success() {
@@ -765,11 +1033,11 @@ async fn stream_cli_output(
                 "ai_stream_error",
                 StreamError {
                     request_id: request_id.to_string(),
-                    error: "Analysis timed out".to_string(),
+                    error: "Analysis timed out (total time exceeded 20 minutes)".to_string(),
                     code: "TIMEOUT".to_string(),
                 },
             );
-            Err("Timeout".to_string())
+            Err("Total timeout".to_string())
         }
     }
 }

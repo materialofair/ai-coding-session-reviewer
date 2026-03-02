@@ -22,7 +22,19 @@ import {
   type SessionTokenStats,
 } from "./types";
 import type { GroupingMode } from "./types/metadata.types";
-import { AlertTriangle, MessageSquare, Database, BarChart3, FileEdit, Coins, Settings } from "lucide-react";
+import {
+  AlertTriangle,
+  MessageSquare,
+  Database,
+  BarChart3,
+  FileEdit,
+  Coins,
+  Settings,
+  Clock3,
+  Bug,
+  Wrench,
+  ArrowRight,
+} from "lucide-react";
 import { AIAssistantPanel } from "./components/AIAssistantPanel";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -124,6 +136,14 @@ function App() {
       { providers: labels.join(", ") }
     );
   }, [activeProviders, t]);
+  const projectSessionsOverview = useMemo(() => {
+    if (!selectedProject) return [];
+    return [...sessions].sort((a, b) => {
+      const ta = new Date(a.last_message_time || a.last_modified).getTime();
+      const tb = new Date(b.last_message_time || b.last_modified).getTime();
+      return tb - ta;
+    });
+  }, [selectedProject, sessions]);
   const liveStatusMessage = useMemo(() => {
     if (updater.state.isChecking) {
       return t("common.settings.checking");
@@ -620,6 +640,132 @@ function App() {
                     onToggleCollapse={toggleNavigator}
                     asideId="message-navigator"
                   />
+                </div>
+              ) : selectedProject ? (
+                <div className="h-full overflow-auto p-6">
+                  <div className="mx-auto w-full max-w-5xl space-y-5">
+                    <div className="rounded-xl border border-border/60 bg-card p-5">
+                      <h2 className="text-xl font-semibold text-foreground">
+                        {selectedProject.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t(
+                          "session.projectOverviewDescription",
+                          { defaultValue: "项目已选中。你可以直接从下方最近会话进入任务复盘，或切换到看板/分析做项目复盘。" }
+                        )}
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("session.projectOverview.totalSessions", { defaultValue: "会话总数" })}
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">
+                            {projectSessionsOverview.length}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("session.projectOverview.withErrors", { defaultValue: "包含错误" })}
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">
+                            {projectSessionsOverview.filter((s) => s.has_errors).length}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("session.projectOverview.withTools", { defaultValue: "包含工具调用" })}
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-foreground">
+                            {projectSessionsOverview.filter((s) => s.has_tool_use).length}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                          onClick={() => {
+                            const latest = projectSessionsOverview[0];
+                            if (latest) {
+                              void handleSessionSelect(latest);
+                            }
+                          }}
+                        >
+                          {t("session.projectOverview.openLatest", { defaultValue: "打开最新会话" })}
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                          onClick={() => {
+                            void analyticsActions.switchToBoard();
+                          }}
+                        >
+                          {t("session.projectOverview.openBoard", { defaultValue: "进入会话看板" })}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                          onClick={() => {
+                            void analyticsActions.switchToAnalytics();
+                          }}
+                        >
+                          {t("session.projectOverview.openAnalytics", { defaultValue: "查看项目分析" })}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-border/60 bg-card p-4">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {t("session.projectOverview.recentSessions", { defaultValue: "最近会话" })}
+                      </h3>
+                      {projectSessionsOverview.length === 0 ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {t("session.projectOverview.noSessions", { defaultValue: "当前项目还没有可用会话。" })}
+                        </p>
+                      ) : (
+                        <div className="mt-3 grid gap-2">
+                          {projectSessionsOverview.slice(0, 12).map((session) => (
+                            <button
+                              key={session.session_id}
+                              type="button"
+                              className="group w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/40"
+                              onClick={() => void handleSessionSelect(session)}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="line-clamp-1 text-sm font-medium text-foreground">
+                                  {session.summary ||
+                                    `${t("session.title")} ${session.actual_session_id.slice(0, 8)}`}
+                                </p>
+                                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground transition group-hover:text-foreground" />
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                  <Clock3 className="h-3.5 w-3.5" />
+                                  {new Date(
+                                    session.last_message_time || session.last_modified
+                                  ).toLocaleString()}
+                                </span>
+                                {session.has_tool_use && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Wrench className="h-3.5 w-3.5" />
+                                    {t("session.item.containsToolUse")}
+                                  </span>
+                                )}
+                                {session.has_errors && (
+                                  <span className="inline-flex items-center gap-1 text-destructive">
+                                    <Bug className="h-3.5 w-3.5" />
+                                    {t("session.item.containsErrors")}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 /* Empty State */

@@ -188,6 +188,8 @@ export interface AppStoreState {
   aiAnalysisScope: import("./aiAssistantSlice").AiAnalysisScope;
   aiAnalysisType: import("./aiAssistantSlice").AiAnalysisType;
   isAiAnalyzing: boolean;
+  aiChatSessions: import("./aiAssistantSlice").AiChatSession[];
+  activeAiChatSessionId: string;
   aiMessages: import("./aiAssistantSlice").AiChatMessage[];
   isAiStreaming: boolean;
   activeRequestId: string | null;
@@ -341,6 +343,9 @@ export interface AppStoreActions {
   setAiDataSourceProvider: (provider: import("./aiAssistantSlice").AiDataSourceProvider) => void;
   setAiAnalysisScope: (scope: import("./aiAssistantSlice").AiAnalysisScope) => void;
   setAiAnalysisType: (type: import("./aiAssistantSlice").AiAnalysisType) => void;
+  createAiChatSession: (title?: string) => void;
+  switchAiChatSession: (sessionId: string) => void;
+  deleteAiChatSession: (sessionId: string) => void;
   appendAiMessage: (msg: import("./aiAssistantSlice").AiChatMessage) => void;
   appendAiStreamDelta: (id: string, delta: string) => void;
   finalizeAiStream: (id: string) => void;

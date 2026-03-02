@@ -193,7 +193,10 @@ fn build_stale_worktree_fallback_map(session_infos: &[SessionInfo]) -> HashMap<S
         .collect()
 }
 
-fn resolve_session_project_key(cwd: &str, stale_worktree_fallback: &HashMap<String, String>) -> String {
+fn resolve_session_project_key(
+    cwd: &str,
+    stale_worktree_fallback: &HashMap<String, String>,
+) -> String {
     if let Some(repo_name) = extract_stale_codex_worktree_repo_name(cwd) {
         if let Some(mapped_key) = stale_worktree_fallback.get(&repo_name) {
             return mapped_key.clone();

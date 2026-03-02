@@ -15,7 +15,12 @@ import type { FullAppStore } from "./types";
 
 export type AiProvider = "claude" | "codex" | "opencode";
 export type AiAnalysisScope = "current" | "all";
-export type AiAnalysisType = "summary" | "repeated" | "unresolved" | "chat";
+export type AiAnalysisType =
+  | "summary"
+  | "repeated"
+  | "unresolved"
+  | "prompt_skill_optimization"
+  | "chat";
 /** Which provider's session data to feed into the AI analysis.
  *  `"auto"` = use whatever session/project is selected in the main app. */
 export type AiDataSourceProvider = "auto" | AiProvider;
@@ -26,6 +31,14 @@ export interface AiChatMessage {
   content: string;
   timestamp: string;
   isStreaming?: boolean;
+}
+
+export interface AiChatSession {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: AiChatMessage[];
 }
 
 export interface CliStatus {
@@ -56,6 +69,8 @@ export interface AiAssistantSliceState {
   aiAnalysisScope: AiAnalysisScope;
   aiAnalysisType: AiAnalysisType;
   isAiAnalyzing: boolean;
+  aiChatSessions: AiChatSession[];
+  activeAiChatSessionId: string;
   aiMessages: AiChatMessage[];
   isAiStreaming: boolean;
   activeRequestId: string | null;
@@ -75,6 +90,9 @@ export interface AiAssistantSliceActions {
   setAiDataSourceProvider: (provider: AiDataSourceProvider) => void;
   setAiAnalysisScope: (scope: AiAnalysisScope) => void;
   setAiAnalysisType: (type: AiAnalysisType) => void;
+  createAiChatSession: (title?: string) => void;
+  switchAiChatSession: (sessionId: string) => void;
+  deleteAiChatSession: (sessionId: string) => void;
   appendAiMessage: (msg: AiChatMessage) => void;
   appendAiStreamDelta: (id: string, delta: string) => void;
   finalizeAiStream: (id: string) => void;
@@ -118,6 +136,16 @@ const initialAiAssistantState: AiAssistantSliceState = {
   aiAnalysisScope: "current",
   aiAnalysisType: "summary",
   isAiAnalyzing: false,
+  aiChatSessions: [
+    {
+      id: "chat-1",
+      title: "Chat 1",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+    },
+  ],
+  activeAiChatSessionId: "chat-1",
   aiMessages: [],
   isAiStreaming: false,
   activeRequestId: null,
@@ -186,32 +214,142 @@ export const createAiAssistantSlice: StateCreator<
 
   setAiAnalysisType: (type) => set({ aiAnalysisType: type }),
 
+  createAiChatSession: (title) =>
+    set((state) => {
+      const nextIndex = state.aiChatSessions.length + 1;
+      const now = new Date().toISOString();
+      const sessionId = crypto.randomUUID();
+      const newSession: AiChatSession = {
+        id: sessionId,
+        title: title?.trim() || `Chat ${nextIndex}`,
+        createdAt: now,
+        updatedAt: now,
+        messages: [],
+      };
+      return {
+        aiChatSessions: [...state.aiChatSessions, newSession],
+        activeAiChatSessionId: sessionId,
+        aiMessages: [],
+        isAiStreaming: false,
+        activeRequestId: null,
+      };
+    }),
+
+  switchAiChatSession: (sessionId) =>
+    set((state) => {
+      const targetSession = state.aiChatSessions.find((s) => s.id === sessionId);
+      if (!targetSession || state.isAiStreaming) return state;
+      return {
+        activeAiChatSessionId: sessionId,
+        aiMessages: targetSession.messages,
+      };
+    }),
+
+  deleteAiChatSession: (sessionId) =>
+    set((state) => {
+      if (state.aiChatSessions.length <= 1) {
+        const now = new Date().toISOString();
+        const current = state.aiChatSessions[0] ?? {
+          id: "chat-1",
+          title: "Chat 1",
+          createdAt: now,
+          updatedAt: now,
+          messages: [],
+        };
+        const resetSession: AiChatSession = {
+          ...current,
+          messages: [],
+          updatedAt: now,
+        };
+        return {
+          aiChatSessions: [resetSession],
+          activeAiChatSessionId: resetSession.id,
+          aiMessages: [],
+          isAiStreaming: false,
+          activeRequestId: null,
+        };
+      }
+
+      const remaining = state.aiChatSessions.filter((s) => s.id !== sessionId);
+      const nextActive =
+        state.activeAiChatSessionId === sessionId
+          ? remaining[0]
+          : remaining.find((s) => s.id === state.activeAiChatSessionId) || remaining[0];
+      if (nextActive == null) {
+        return state;
+      }
+
+      return {
+        aiChatSessions: remaining,
+        activeAiChatSessionId: nextActive.id,
+        aiMessages: nextActive.messages,
+      };
+    }),
+
   appendAiMessage: (msg) =>
     set((state) => {
       const MAX_MESSAGES = 20; // 10 turns
-      const messages = [...state.aiMessages, msg];
-      return { aiMessages: messages.slice(-MAX_MESSAGES) };
+      const now = new Date().toISOString();
+      const sessions = state.aiChatSessions.map((session) => {
+        if (session.id !== state.activeAiChatSessionId) return session;
+        const messages = [...session.messages, msg].slice(-MAX_MESSAGES);
+        return { ...session, messages, updatedAt: now };
+      });
+      const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
+      return { aiChatSessions: sessions, aiMessages: active?.messages ?? [] };
     }),
 
   appendAiStreamDelta: (id, delta) =>
-    set((state) => ({
-      aiMessages: state.aiMessages.map((msg) =>
-        msg.id === id
-          ? { ...msg, content: msg.content + delta }
-          : msg
-      ),
-    })),
+    set((state) => {
+      const now = new Date().toISOString();
+      const sessions = state.aiChatSessions.map((session) => {
+        const hasTarget = session.messages.some((msg) => msg.id === id);
+        if (!hasTarget) return session;
+        return {
+          ...session,
+          updatedAt: now,
+          messages: session.messages.map((msg) =>
+            msg.id === id ? { ...msg, content: msg.content + delta } : msg
+          ),
+        };
+      });
+      const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
+      return { aiChatSessions: sessions, aiMessages: active?.messages ?? state.aiMessages };
+    }),
 
   finalizeAiStream: (id) =>
-    set((state) => ({
-      aiMessages: state.aiMessages.map((msg) =>
-        msg.id === id ? { ...msg, isStreaming: false } : msg
-      ),
-      isAiStreaming: false,
-      activeRequestId: null,
-    })),
+    set((state) => {
+      const now = new Date().toISOString();
+      const sessions = state.aiChatSessions.map((session) => {
+        const hasTarget = session.messages.some((msg) => msg.id === id);
+        if (!hasTarget) return session;
+        return {
+          ...session,
+          updatedAt: now,
+          messages: session.messages.map((msg) =>
+            msg.id === id ? { ...msg, isStreaming: false } : msg
+          ),
+        };
+      });
+      const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
+      return {
+        aiChatSessions: sessions,
+        aiMessages: active?.messages ?? state.aiMessages,
+        isAiStreaming: false,
+        activeRequestId: null,
+      };
+    }),
 
-  clearAiMessages: () => set({ aiMessages: [] }),
+  clearAiMessages: () =>
+    set((state) => {
+      const now = new Date().toISOString();
+      const sessions = state.aiChatSessions.map((session) =>
+        session.id === state.activeAiChatSessionId
+          ? { ...session, messages: [], updatedAt: now }
+          : session
+      );
+      return { aiChatSessions: sessions, aiMessages: [] };
+    }),
 
   setIsAiAnalyzing: (v) => set({ isAiAnalyzing: v }),
 

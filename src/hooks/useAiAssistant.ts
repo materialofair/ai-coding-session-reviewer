@@ -89,12 +89,22 @@ export function useAiAssistant() {
       }
     }
 
-    // Auto: use whatever is selected in the main app
-    if (state.aiAnalysisScope === "current") {
-      if (state.selectedSession?.file_path) return [state.selectedSession.file_path];
-      return [];
+    // Auto mode priority:
+    // 1) selected session -> task-level context
+    // 2) selected project (without session) -> all sessions in that project
+    // 3) fallback to manual scope behavior
+    if (state.selectedSession?.file_path) {
+      return [state.selectedSession.file_path];
     }
-    return state.sessions.map((s) => s.file_path).filter(Boolean);
+
+    if (state.selectedProject) {
+      return state.sessions.map((s) => s.file_path).filter(Boolean);
+    }
+
+    if (state.aiAnalysisScope === "all") {
+      return state.sessions.map((s) => s.file_path).filter(Boolean);
+    }
+    return [];
   }, [store.aiAnalysisScope, store.aiDataSourceProvider, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAnalysis = useCallback(async () => {

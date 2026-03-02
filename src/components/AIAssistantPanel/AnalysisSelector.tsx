@@ -70,6 +70,10 @@ export function AnalysisSelector({ onStartAnalysis }: AnalysisSelectorProps) {
     { value: "summary", label: t("aiAssistant.analysis.summary") },
     { value: "repeated", label: t("aiAssistant.analysis.repeated") },
     { value: "unresolved", label: t("aiAssistant.analysis.unresolved") },
+    {
+      value: "prompt_skill_optimization",
+      label: t("aiAssistant.analysis.promptSkillOptimization"),
+    },
   ];
 
   return (
