@@ -18,8 +18,6 @@
 
 </div>
 
-> **我們正在考慮重新命名此專案**，以更好地反映多工具支援（Claude Code、Codex CLI、OpenCode）。
-> 請在 [Issue #152](https://github.com/materialofair/ai-coding-session-reviewer/issues/152) 分享您的想法和命名建議！
 
 ---
 
