@@ -199,9 +199,9 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
       <div className="mb-2 flex justify-end">
         <div
           className={cn(
-            "max-w-xs sm:max-w-md lg:max-w-lg rounded-2xl px-4 py-3 relative group border border-accent/30",
-            "bg-accent/90 text-accent-foreground",
-            compact ? "shadow-none" : "shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
+            "max-w-xs sm:max-w-md lg:max-w-lg rounded-2xl px-4 py-3 relative group",
+            "bg-slate-100 text-slate-900 dark:bg-slate-800/50 dark:text-slate-100",
+            "shadow-none"
           )}
         >
           <div className={cn(
@@ -226,7 +226,7 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
               onClick={() => setIsExpanded(!isExpanded)}
               className={cn(
                 "flex items-center gap-1 mt-1.5 text-2xs",
-                "text-accent-foreground/70 hover:text-accent-foreground",
+                "text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100",
                 "transition-colors"
               )}
             >
@@ -245,7 +245,7 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
           <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <TooltipButton
               onClick={() => navigator.clipboard.writeText(content)}
-              className="p-1 rounded-full transition-colors bg-accent/80 hover:bg-accent/60 text-accent-foreground"
+              className="p-1 rounded-full transition-colors bg-slate-200/80 hover:bg-slate-300/80 text-slate-700 dark:bg-slate-700/70 dark:hover:bg-slate-600/80 dark:text-slate-100"
               content={t("messageContentDisplay.copyMessage")}
             >
               <Copy className={layout.iconSizeSmall} />
@@ -262,9 +262,8 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
       <div className="mb-2 flex justify-start">
         <div
           className={cn(
-            "max-w-xs sm:max-w-md lg:max-w-2xl rounded-2xl px-4 py-3 relative group",
-            "bg-background text-foreground border border-border/60",
-            compact ? "shadow-none" : "shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+            "max-w-xs sm:max-w-md lg:max-w-2xl relative",
+            "text-foreground"
           )}
         >
           {/* 검색 중일 때는 plain text로 렌더링 (성능 + 하이라이팅) */}
@@ -319,15 +318,6 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
             </button>
           )}
 
-          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <TooltipButton
-              onClick={() => navigator.clipboard.writeText(content)}
-              className="p-1 rounded-full transition-colors bg-muted hover:bg-muted/80 text-muted-foreground"
-              content={t("messageContentDisplay.copyMessage")}
-            >
-              <Copy className={layout.iconSizeSmall} />
-            </TooltipButton>
-          </div>
         </div>
       </div>
     );

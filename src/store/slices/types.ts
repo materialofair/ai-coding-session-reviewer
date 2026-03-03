@@ -129,6 +129,7 @@ export interface AppStoreState {
   // Settings state
   excludeSidechain: boolean;
   showSystemMessages: boolean;
+  showToolCalls: boolean;
   fontScale: number;
   highContrast: boolean;
   updateSettings: UpdateSettings;
@@ -257,6 +258,7 @@ export interface AppStoreActions {
   // Settings actions
   setExcludeSidechain: (exclude: boolean) => void;
   setShowSystemMessages: (show: boolean) => void;
+  setShowToolCalls: (show: boolean) => void;
   setFontScale: (scale: number) => Promise<void>;
   setHighContrast: (enabled: boolean) => Promise<void>;
   loadUpdateSettings: () => Promise<void>;

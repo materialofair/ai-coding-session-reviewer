@@ -19,6 +19,7 @@ import type { FullAppStore } from "./types";
 export interface SettingsSliceState {
   excludeSidechain: boolean;
   showSystemMessages: boolean;
+  showToolCalls: boolean;
   fontScale: number;
   highContrast: boolean;
   updateSettings: UpdateSettings;
@@ -28,6 +29,7 @@ export interface SettingsSliceState {
 export interface SettingsSliceActions {
   setExcludeSidechain: (exclude: boolean) => void;
   setShowSystemMessages: (show: boolean) => void;
+  setShowToolCalls: (show: boolean) => void;
   setFontScale: (scale: number) => Promise<void>;
   setHighContrast: (enabled: boolean) => Promise<void>;
   loadUpdateSettings: () => Promise<void>;
@@ -60,6 +62,7 @@ const normalizeFontScale = (value: unknown): number => {
 const initialSettingsState: SettingsSliceState = {
   excludeSidechain: true,
   showSystemMessages: false,
+  showToolCalls: false,
   fontScale: DEFAULT_FONT_SCALE,
   highContrast: false,
   updateSettings: DEFAULT_UPDATE_SETTINGS,
@@ -92,6 +95,15 @@ export const createSettingsSlice: StateCreator<
 
   setShowSystemMessages: (show: boolean) => {
     set({ showSystemMessages: show });
+    // Refresh current session when filter changes
+    const { selectedSession } = get();
+    if (selectedSession) {
+      get().selectSession(selectedSession);
+    }
+  },
+
+  setShowToolCalls: (show: boolean) => {
+    set({ showToolCalls: show });
     // Refresh current session when filter changes
     const { selectedSession } = get();
     if (selectedSession) {

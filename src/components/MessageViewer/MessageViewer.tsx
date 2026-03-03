@@ -621,7 +621,7 @@ export const MessageViewer: React.FC<MessageViewerProps> = ({
       >
         {/* 디버깅 정보 */}
         {import.meta.env.DEV && (
-          <div className="bg-warning/10 p-2 text-xs text-warning-foreground border-b border-warning/20 space-y-1">
+          <div className="mx-4 mt-3 max-w-4xl rounded-lg border border-border/60 bg-muted/25 px-3 py-2 text-xs text-muted-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-1">
             <div>
               {t("messageViewer.debugInfo.messages", {
                 current: displayMessages.length,

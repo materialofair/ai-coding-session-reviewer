@@ -34,6 +34,58 @@ import { nextRequestId, getRequestId } from "../../utils/requestId";
 import { supportsConversationBreakdown } from "../../utils/providers";
 import { normalizeDateFilterOptions } from "../../utils/date";
 
+const AUXILIARY_MESSAGE_CONTENT_TYPE_SUFFIXES = [
+  "tool_use",
+  "tool_result",
+] as const;
+const AUXILIARY_MESSAGE_CONTENT_TYPES = new Set(["thinking", "redacted_thinking"]);
+
+const isAuxiliaryContentType = (value: string): boolean =>
+  AUXILIARY_MESSAGE_CONTENT_TYPES.has(value) ||
+  AUXILIARY_MESSAGE_CONTENT_TYPE_SUFFIXES.some(
+    (suffix) => value === suffix || value.endsWith(`_${suffix}`)
+  );
+
+const getContentItemType = (item: unknown): string | null => {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const candidate = (item as { type?: unknown }).type;
+  return typeof candidate === "string" ? candidate : null;
+};
+
+const isPureAuxiliaryMessage = (message: ClaudeMessage): boolean => {
+  if (message.type !== "user" && message.type !== "assistant") {
+    return false;
+  }
+
+  const hasTopLevelToolPayload =
+    ("toolUse" in message && Boolean(message.toolUse)) ||
+    ("toolUseResult" in message && Boolean(message.toolUseResult));
+
+  let hasToolContent = false;
+  let hasNonToolContent = false;
+
+  if (Array.isArray(message.content)) {
+    for (const item of message.content) {
+      const itemType = getContentItemType(item);
+      if (itemType && isAuxiliaryContentType(itemType)) {
+        hasToolContent = true;
+      } else {
+        hasNonToolContent = true;
+      }
+    }
+  } else if (typeof message.content === "string") {
+    if (message.content.trim().length > 0) {
+      hasNonToolContent = true;
+    }
+  } else if (message.content != null) {
+    hasNonToolContent = true;
+  }
+
+  return (hasTopLevelToolPayload || hasToolContent) && !hasNonToolContent;
+};
+
 // ============================================================================
 // State Interface
 // ============================================================================
@@ -185,6 +237,13 @@ export const createMessageSlice: StateCreator<
       if (!get().showSystemMessages) {
         filteredMessages = filteredMessages.filter(
           (m) => !systemMessageTypes.includes(m.type)
+        );
+      }
+
+      // Apply auxiliary-content visibility filter (default: hide pure tool/thinking messages)
+      if (!get().showToolCalls) {
+        filteredMessages = filteredMessages.filter(
+          (m) => !isPureAuxiliaryMessage(m)
         );
       }
 

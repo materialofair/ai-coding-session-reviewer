@@ -291,7 +291,7 @@ export const ClaudeMessageNode = React.memo(({
                   currentMatchIndex={currentMatchIndex}
                   skipToolResults={shouldRenderLegacyToolResult}
                   skipText={
-                    message.type === "assistant" &&
+                    (message.type === "assistant" || message.type === "user") &&
                     !!extractClaudeMessageContent(message)
                   }
                 />

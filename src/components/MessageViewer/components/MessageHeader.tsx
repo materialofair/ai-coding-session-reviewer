@@ -21,6 +21,11 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
     (message.type === "user" || message.type === "assistant") &&
     !!message.toolUseResult;
   const isSystemContent = hasSystemCommandContent(message);
+  const isPlainConversationMessage =
+    (message.type === "user" || message.type === "assistant") &&
+    !isToolResultMessage &&
+    !isSystemContent;
+  const showTimestamp = message.type === "user";
   const toolName = isToolResultMessage
     ? getToolName(
       (message as ClaudeAssistantMessage).toolUse,
@@ -35,13 +40,24 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
       ? t("messageViewer.system")
       : message.type === "user"
         ? t("messageViewer.user")
-        : message.type === "assistant"
+    : message.type === "assistant"
           ? (message.provider === "codex"
             ? "Codex"
             : message.provider === "opencode"
               ? "OpenCode"
               : t("messageViewer.claude"))
           : t("messageViewer.system");
+  const showSpeakerBadge = !isPlainConversationMessage;
+  const showModelDetails =
+    !compact &&
+    message.type === "assistant" &&
+    Boolean(message.model) &&
+    !isPlainConversationMessage;
+  const hasLeftMeta = showSpeakerBadge || showTimestamp || Boolean(message.isSidechain);
+
+  if (!hasLeftMeta && !showModelDetails) {
+    return null;
+  }
 
   return (
     <div className={cn(
@@ -49,11 +65,15 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
       isLeftAligned ? "justify-between" : "justify-end"
     )}>
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center rounded-md border border-border/50 bg-muted/40 px-1.5 py-0.5 font-medium text-foreground/80">
-          {speakerLabel}
-        </span>
-        <span>·</span>
-        <span>{formatTimeShort(message.timestamp)}</span>
+        {showSpeakerBadge && (
+          <>
+            <span className="inline-flex items-center rounded-md border border-border/50 bg-muted/40 px-1.5 py-0.5 font-medium text-foreground/80">
+              {speakerLabel}
+            </span>
+            {showTimestamp && <span>·</span>}
+          </>
+        )}
+        {showTimestamp && <span>{formatTimeShort(message.timestamp)}</span>}
         {message.isSidechain && (
           <span className="px-1.5 py-0.5 text-[10px] font-mono bg-warning/15 text-warning-foreground rounded-full border border-warning/30">
             {t("messageViewer.branch")}
@@ -61,7 +81,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
         )}
       </div>
 
-      {!compact && message.type === "assistant" && message.model && (
+      {showModelDetails && (
         <div className="relative group flex items-center gap-1.5">
           <span className="text-muted-foreground">{getShortModelName(message.model)}</span>
           {message.usage && (

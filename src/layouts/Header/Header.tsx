@@ -104,8 +104,8 @@ export const Header = ({ analyticsActions, analyticsComputed, updater }: HeaderP
             )}
           </div>
           {selectedSession ? (
-            <p className="text-2xs text-muted-foreground truncate max-w-sm">
-              <span className="text-muted-foreground/60">Session:</span>{" "}
+            <p className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/35 px-2 py-0.5 text-2xs text-muted-foreground truncate max-w-sm">
+              <span className="text-muted-foreground/70">Session:</span>
               {selectedSession.summary ||
                 `${t("session.title")} ${selectedSession.session_id.slice(-8)}`}
             </p>

@@ -510,9 +510,9 @@ function App() {
               computed.isSettingsView ||
               computed.isBoardView ||
               isViewingGlobalStats) && (
-              <div className="px-6 py-4 border-b border-border/50 bg-card/50">
+              <div className="px-6 py-4 border-b border-border/60 bg-gradient-to-r from-slate-50/80 via-background to-sky-50/70 dark:from-slate-900/35 dark:via-slate-900/20 dark:to-sky-950/20">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg border border-sky-200/70 bg-sky-100/80 dark:border-sky-500/25 dark:bg-sky-500/15 flex items-center justify-center">
                     {isViewingGlobalStats ? (
                       <Database className="w-5 h-5 text-accent" />
                     ) : computed.isSettingsView ? (

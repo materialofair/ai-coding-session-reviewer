@@ -472,7 +472,7 @@ pub fn load_messages(session_path: &str) -> Result<Vec<ClaudeMessage>, String> {
                         if try_merge_tool_result_into_previous(&mut messages, &msg) {
                             continue;
                         }
-                        messages.push(msg);
+                        push_codex_message_with_dedupe(&mut messages, msg);
                     }
                 }
             }
@@ -514,7 +514,7 @@ pub fn load_messages(session_path: &str) -> Result<Vec<ClaudeMessage>, String> {
                     } else if let Some(msg) =
                         convert_codex_event(payload, &session_id, &line_timestamp, &mut msg_counter)
                     {
-                        messages.push(msg);
+                        push_codex_message_with_dedupe(&mut messages, msg);
                     }
                 }
             }
@@ -526,7 +526,7 @@ pub fn load_messages(session_path: &str) -> Result<Vec<ClaudeMessage>, String> {
                         &line_timestamp,
                         &mut msg_counter,
                     );
-                    messages.push(msg);
+                    push_codex_message_with_dedupe(&mut messages, msg);
                 }
             }
             _ => {}
@@ -726,25 +726,46 @@ fn extract_text_from_content(item: &Value) -> Option<String> {
     None
 }
 
+fn first_non_empty_line(raw: &str) -> Option<&str> {
+    raw.lines().map(str::trim).find(|line| !line.is_empty())
+}
+
+fn is_bootstrap_preamble_line(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    line.starts_with("# AGENTS.md instructions for")
+        || lower.starts_with("<permissions instructions>")
+        || lower.starts_with("<app-context>")
+        || lower.starts_with("<environment_context>")
+        || lower.starts_with("<instructions>")
+        || lower.starts_with("<skill>")
+        || lower.starts_with("<collaboration_mode>")
+}
+
+fn is_bootstrap_preamble_text(raw: &str) -> bool {
+    first_non_empty_line(raw).is_some_and(is_bootstrap_preamble_line)
+}
+
+fn extract_first_text_block(content: Option<&Value>) -> Option<&str> {
+    let arr = content?.as_array()?;
+    for item in arr {
+        let ctype = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if ctype == "input_text" || ctype == "output_text" || ctype == "text" {
+            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                return Some(text);
+            }
+        }
+    }
+    None
+}
+
 fn sanitize_session_title(raw: &str) -> Option<String> {
-    let first_line = raw
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .unwrap_or("");
+    let first_line = first_non_empty_line(raw).unwrap_or("");
 
     if first_line.is_empty() {
         return None;
     }
 
-    let lower = first_line.to_ascii_lowercase();
-    let is_metadata_boilerplate = first_line.starts_with("# AGENTS.md instructions for")
-        || lower.starts_with("<permissions instructions>")
-        || lower.starts_with("<app-context>")
-        || lower.starts_with("<environment_context>")
-        || lower.starts_with("<instructions>");
-
-    if is_metadata_boilerplate {
+    if is_bootstrap_preamble_line(first_line) {
         return None;
     }
 
@@ -781,6 +802,19 @@ fn convert_codex_item(
     match item_type {
         "message" => {
             let role = item.get("role").and_then(|r| r.as_str()).unwrap_or("user");
+
+            // Codex rollout includes bootstrap/system scaffolding as "message" items.
+            // These should not be rendered as user-visible conversation turns.
+            if role.eq_ignore_ascii_case("developer") || role.eq_ignore_ascii_case("system") {
+                return None;
+            }
+            if role.eq_ignore_ascii_case("user")
+                && extract_first_text_block(item.get("content"))
+                    .is_some_and(is_bootstrap_preamble_text)
+            {
+                return None;
+            }
+
             let content = convert_codex_content_array(item.get("content"));
 
             Some(build_codex_message(
@@ -1127,8 +1161,14 @@ fn convert_codex_event(
             ))
         }
         "user_message" => {
+            if payload.get("kind").and_then(Value::as_str) == Some("environment_context") {
+                return None;
+            }
             let text = payload.get("message").and_then(Value::as_str)?.trim();
             if text.is_empty() {
+                return None;
+            }
+            if is_bootstrap_preamble_text(text) {
                 return None;
             }
             *counter += 1;
@@ -1368,6 +1408,58 @@ fn append_content_block(msg: &mut ClaudeMessage, block: Value) {
     }
 }
 
+fn extract_text_or_thinking(content: Option<&Value>) -> Option<&str> {
+    let arr = content?.as_array()?;
+    for item in arr {
+        let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
+        if item_type == "text" {
+            if let Some(text) = item.get("text").and_then(Value::as_str) {
+                return Some(text);
+            }
+        } else if item_type == "thinking" {
+            if let Some(thinking) = item.get("thinking").and_then(Value::as_str) {
+                return Some(thinking);
+            }
+        }
+    }
+    None
+}
+
+fn is_adjacent_duplicate_message(prev: &ClaudeMessage, next: &ClaudeMessage) -> bool {
+    // Keep de-duplication narrow to avoid collapsing legitimate repeated prompts.
+    // This targets codex double-emission patterns (response_item + event_msg) only.
+    if prev.message_type != next.message_type {
+        return false;
+    }
+    if !(next.message_type == "user" || next.message_type == "assistant") {
+        return false;
+    }
+    if prev.timestamp != next.timestamp {
+        return false;
+    }
+
+    let Some(prev_text) = extract_text_or_thinking(prev.content.as_ref()) else {
+        return false;
+    };
+    let Some(next_text) = extract_text_or_thinking(next.content.as_ref()) else {
+        return false;
+    };
+
+    let prev_trimmed = prev_text.trim();
+    let next_trimmed = next_text.trim();
+    !prev_trimmed.is_empty() && prev_trimmed == next_trimmed
+}
+
+fn push_codex_message_with_dedupe(messages: &mut Vec<ClaudeMessage>, msg: ClaudeMessage) {
+    if messages
+        .last()
+        .is_some_and(|prev| is_adjacent_duplicate_message(prev, &msg))
+    {
+        return;
+    }
+    messages.push(msg);
+}
+
 fn extract_first_tool_use(content: Option<&Value>) -> Option<Value> {
     let arr = content?.as_array()?;
     arr.iter()
@@ -1597,10 +1689,56 @@ mod tests {
     fn sanitize_session_title_filters_agents_preamble() {
         let agents = "# AGENTS.md instructions for /Users/test/project\n<INSTRUCTIONS>";
         assert_eq!(sanitize_session_title(agents), None);
+        let skill = "<skill>\n<name>analyze</name>";
+        assert_eq!(sanitize_session_title(skill), None);
         assert_eq!(
             sanitize_session_title("  Refine selected item style  "),
             Some("Refine selected item style".to_string())
         );
+    }
+
+    #[test]
+    fn convert_message_item_skips_bootstrap_and_developer_messages() {
+        let mut counter = 0u64;
+        let user_bootstrap = convert_codex_item(
+            &json!({
+                "type": "message",
+                "role": "user",
+                "content": [{ "type": "input_text", "text": "# AGENTS.md instructions for /tmp/proj\n<INSTRUCTIONS>" }]
+            }),
+            "session-1",
+            None,
+            "2026-02-19T12:00:00Z",
+            &mut counter,
+        );
+        assert!(user_bootstrap.is_none());
+
+        let developer_bootstrap = convert_codex_item(
+            &json!({
+                "type": "message",
+                "role": "developer",
+                "content": [{ "type": "input_text", "text": "<permissions instructions>..." }]
+            }),
+            "session-1",
+            None,
+            "2026-02-19T12:00:00Z",
+            &mut counter,
+        );
+        assert!(developer_bootstrap.is_none());
+
+        let user_normal = convert_codex_item(
+            &json!({
+                "type": "message",
+                "role": "user",
+                "content": [{ "type": "input_text", "text": "Please refactor this function." }]
+            }),
+            "session-1",
+            None,
+            "2026-02-19T12:00:00Z",
+            &mut counter,
+        )
+        .expect("normal user message should be converted");
+        assert_eq!(user_normal.message_type, "user");
     }
 
     #[test]
@@ -1968,6 +2106,33 @@ mod tests {
     }
 
     #[test]
+    fn convert_user_message_event_skips_bootstrap_or_environment_context() {
+        let mut counter = 0u64;
+        let bootstrap = convert_codex_event(
+            &json!({
+                "type": "user_message",
+                "message": "<environment_context>\n<cwd>/tmp/project</cwd>"
+            }),
+            "session-1",
+            "2026-02-19T12:00:00Z",
+            &mut counter,
+        );
+        assert!(bootstrap.is_none());
+
+        let env_context = convert_codex_event(
+            &json!({
+                "type": "user_message",
+                "kind": "environment_context",
+                "message": "cwd=/tmp/project"
+            }),
+            "session-1",
+            "2026-02-19T12:00:00Z",
+            &mut counter,
+        );
+        assert!(env_context.is_none());
+    }
+
+    #[test]
     fn convert_compacted_line_to_system_message() {
         let mut counter = 0u64;
         let msg = convert_codex_compacted(
@@ -2183,6 +2348,70 @@ mod tests {
             .iter()
             .all(|m| m.provider.as_deref() == Some("codex")));
         assert!(messages.iter().all(|m| m.session_id == "sess-1"));
+    }
+
+    #[test]
+    #[serial]
+    fn load_messages_dedupes_response_item_and_user_event_duplicates() {
+        let tmp = TempDir::new().expect("temp dir should be created");
+        let codex_home = tmp.path().join("codex-home");
+        let sessions_dir = codex_home.join("sessions");
+        fs::create_dir_all(&sessions_dir).expect("sessions dir should be created");
+        let _guard = EnvVarGuard::set("CODEX_HOME", &codex_home);
+        let rollout_path = sessions_dir.join("rollout-2026-02-27-dedupe.jsonl");
+
+        let duplicated_text = "根据这个项目我所有的提交记录";
+        let lines = vec![
+            json!({
+                "timestamp": "2026-02-27T02:52:00.100Z",
+                "type": "session_meta",
+                "payload": { "id": "sess-dedupe" }
+            }),
+            json!({
+                "timestamp": "2026-02-27T02:52:00.290Z",
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": duplicated_text }]
+                }
+            }),
+            json!({
+                "timestamp": "2026-02-27T02:52:00.290Z",
+                "type": "event_msg",
+                "payload": {
+                    "type": "user_message",
+                    "message": duplicated_text
+                }
+            }),
+        ];
+
+        let content = lines
+            .iter()
+            .map(Value::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&rollout_path, format!("{content}\n")).expect("fixture should be written");
+
+        let messages = load_messages(
+            rollout_path
+                .to_str()
+                .expect("rollout path should be valid UTF-8"),
+        )
+        .expect("rollout should be parsed");
+
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].message_type, "user");
+        let arr = messages[0]
+            .content
+            .as_ref()
+            .and_then(Value::as_array)
+            .expect("content should be an array");
+        assert_eq!(arr[0].get("type").and_then(Value::as_str), Some("text"));
+        assert_eq!(
+            arr[0].get("text").and_then(Value::as_str),
+            Some(duplicated_text)
+        );
     }
 
     #[test]
