@@ -65,7 +65,7 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| macOS (Universal) | [`.dmg`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest) |
+| macOS (Universal) | [`.dmg`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest/download/AI.Coding.Session.Reviewer_1.5.3_universal.dmg) |
 
 ### Homebrew (macOS)
 

@@ -364,7 +364,10 @@ export const createProjectSlice: StateCreator<
       if (refreshedSelected) {
         set({ selectedSession: refreshedSelected });
       } else if (refreshedSessions.length > 0) {
-        await get().selectSession(refreshedSessions[0]);
+        const firstSession = refreshedSessions[0];
+        if (firstSession) {
+          await get().selectSession(firstSession);
+        }
       } else {
         clearSelectionState();
       }

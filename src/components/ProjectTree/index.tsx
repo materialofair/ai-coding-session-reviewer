@@ -376,7 +376,10 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
 
   const activeProviderTab: ProviderTabId = useMemo(() => {
     if (isAllProvidersSelected) return "all";
-    if (selectedProviderFilters.length === 1) return selectedProviderFilters[0];
+    if (selectedProviderFilters.length === 1) {
+      const [only] = selectedProviderFilters;
+      if (only) return only;
+    }
     return "all";
   }, [isAllProvidersSelected, selectedProviderFilters]);
 

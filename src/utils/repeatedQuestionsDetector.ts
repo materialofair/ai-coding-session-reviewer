@@ -52,8 +52,8 @@ export function detectRepeatedQuestions(
   const parent = Array.from({ length: n }, (_, i) => i);
 
   function find(x: number): number {
-    if (parent[x] !== x) parent[x] = find(parent[x]);
-    return parent[x];
+    if (parent[x] !== x) parent[x] = find(parent[x]!);
+    return parent[x]!;
   }
 
   function union(x: number, y: number): void {
@@ -65,8 +65,8 @@ export function detectRepeatedQuestions(
   // Compare all pairs
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
-      const textI = messages[i].content;
-      const textJ = messages[j].content;
+      const textI = messages[i]!.content;
+      const textJ = messages[j]!.content;
 
       let similar = false;
 
@@ -106,7 +106,12 @@ export function detectRepeatedQuestions(
     let maxSim = 0;
     for (let a = 0; a < indices.length; a++) {
       for (let b = a + 1; b < indices.length; b++) {
-        const sim = computeCosineSimilarity(tfidf, indices[a], indices[b]);
+        const left = indices[a];
+        const right = indices[b];
+        if (left === undefined || right === undefined) {
+          continue;
+        }
+        const sim = computeCosineSimilarity(tfidf, left, right);
         if (sim > maxSim) maxSim = sim;
       }
     }
@@ -114,12 +119,12 @@ export function detectRepeatedQuestions(
     groups.push({
       indices,
       messages: indices.map((i) => ({
-        sessionId: messages[i].sessionId,
-        timestamp: messages[i].timestamp,
-        content: messages[i].content,
+        sessionId: messages[i]!.sessionId,
+        timestamp: messages[i]!.timestamp,
+        content: messages[i]!.content,
       })),
       similarity: Math.round(maxSim * 100) / 100,
-      representativeText: messages[indices[0]].content,
+      representativeText: messages[indices[0]!]!.content,
     });
   }
 

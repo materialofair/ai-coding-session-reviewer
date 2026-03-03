@@ -24,7 +24,7 @@ export function ProviderSelector() {
     setAiProvider: s.setAiProvider,
   }));
 
-  const current = PROVIDERS.find((p) => p.value === selectedAiProvider) ?? PROVIDERS[0];
+  const current = PROVIDERS.find((p) => p.value === selectedAiProvider) ?? PROVIDERS[0]!;
 
   return (
     <DropdownMenu>
