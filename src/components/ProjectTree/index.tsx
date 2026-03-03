@@ -51,6 +51,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
   selectedSession,
   onProjectSelect,
   onSessionSelect,
+  onSessionDelete,
   onSessionHover,
   onGlobalStatsClick,
   isLoading,
@@ -394,16 +395,21 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
       const diffMins = Math.floor(diffMs / (1000 * 60));
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffWeeks = Math.floor(diffDays / 7);
 
       const currentLanguage = i18n.language || "en";
       const locale = getLocale(currentLanguage);
 
-      if (diffMins < 60) {
+      if (diffMins <= 0) {
+        return t("common.time.justNow", "just now");
+      } else if (diffMins < 60) {
         return t("common.time.minutesAgo", { count: diffMins });
       } else if (diffHours < 24) {
         return t("common.time.hoursAgo", { count: diffHours });
       } else if (diffDays < 7) {
         return t("common.time.daysAgo", { count: diffDays });
+      } else if (diffWeeks < 5) {
+        return t("common.time.weeksAgo", { count: diffWeeks });
       } else {
         return date.toLocaleDateString(locale, {
           month: "short",
@@ -953,6 +959,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                 isProjectFeatured={isProjectFeatured}
                 onToggleProjectFeatured={handleToggleProjectFeatured}
                 onSessionSelect={onSessionSelect}
+                onSessionDelete={onSessionDelete}
                 onSessionHover={onSessionHover}
                 formatTimeAgo={formatTimeAgo}
               />

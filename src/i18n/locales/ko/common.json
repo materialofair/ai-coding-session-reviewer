@@ -80,6 +80,7 @@
   "common.settings.updateSettings": "업데이트 설정",
   "common.show": "보기",
   "common.time.daysAgo": "{{count}}일 전",
+  "common.time.weeksAgo": "{{count}}주 전",
   "common.time.duration": "지속 시간",
   "common.time.end": "종료:",
   "common.time.endTime": "종료 시간",

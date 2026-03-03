@@ -71,6 +71,7 @@ function App() {
     initializeApp,
     selectProject,
     selectSession,
+    deleteSessionFile,
     clearProjectSelection,
     setSessionSearchQuery,
     setSearchFilterType,
@@ -245,6 +246,10 @@ function App() {
 
     await selectSession(session);
   }, [projects, selectProject, selectSession, setAnalyticsCurrentView]);
+
+  const handleSessionDelete = useCallback(async (session: ClaudeSession) => {
+    await deleteSessionFile(session);
+  }, [deleteSessionFile]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -468,6 +473,7 @@ function App() {
             selectedSession={selectedSession}
             onProjectSelect={handleProjectSelect}
             onSessionSelect={handleSessionSelect}
+            onSessionDelete={handleSessionDelete}
             onSessionHover={handleSessionHover}
             onGlobalStatsClick={handleGlobalStatsClick}
             isLoading={isLoadingProjects || isLoadingSessions}

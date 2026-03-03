@@ -15,6 +15,7 @@ export interface ProjectTreeProps {
   selectedSession: ClaudeSession | null;
   onProjectSelect: (project: ClaudeProject) => void;
   onSessionSelect: (session: ClaudeSession) => void;
+  onSessionDelete?: (session: ClaudeSession) => Promise<void>;
   onSessionHover?: (session: ClaudeSession) => void;
   onGlobalStatsClick: () => void;
   isLoading: boolean;
@@ -62,6 +63,7 @@ export interface SessionListProps {
   selectedSession: ClaudeSession | null;
   isLoading: boolean;
   onSessionSelect: (session: ClaudeSession) => void;
+  onSessionDelete?: (session: ClaudeSession) => Promise<void>;
   onSessionHover?: (session: ClaudeSession) => void;
   formatTimeAgo: (date: string) => string;
   variant?: "default" | "main" | "worktree";

@@ -256,6 +256,33 @@ fn validate_session_path(session_path: &Path, raw_session_path: &str) -> Result<
     Ok(canonical_session)
 }
 
+/// Delete a Codex session file after validating path boundaries.
+pub fn delete_session_file(session_path: &str) -> Result<String, String> {
+    let session_path_buf = PathBuf::from(session_path);
+
+    if !session_path_buf.exists() {
+        return Err(format!("Codex session file not found: {session_path}"));
+    }
+
+    let metadata = fs::symlink_metadata(&session_path_buf)
+        .map_err(|e| format!("Failed to read Codex session metadata: {e}"))?;
+    if metadata.file_type().is_symlink() {
+        return Err("Codex session file cannot be a symlink".to_string());
+    }
+
+    let canonical_session = validate_session_path(&session_path_buf, session_path)?;
+    if !is_rollout_jsonl(&canonical_session) {
+        return Err(format!(
+            "Codex session file must match rollout-*.jsonl: {session_path}"
+        ));
+    }
+
+    fs::remove_file(&canonical_session)
+        .map_err(|e| format!("Failed to delete Codex session file: {e}"))?;
+
+    Ok(canonical_session.to_string_lossy().to_string())
+}
+
 /// Session metadata extracted from rollout files
 struct SessionInfo {
     session_id: String,

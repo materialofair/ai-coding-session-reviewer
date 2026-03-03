@@ -28,9 +28,9 @@ use crate::commands::{
     },
     project::{get_claude_folder_path, get_git_log, scan_projects, validate_claude_folder},
     session::{
-        get_recent_edits, get_session_message_count, load_project_sessions, load_session_messages,
-        load_session_messages_paginated, rename_opencode_session_title, rename_session_native,
-        reset_session_native_name, restore_file, search_messages,
+        delete_session_file, get_recent_edits, get_session_message_count, load_project_sessions,
+        load_session_messages, load_session_messages_paginated, rename_opencode_session_title,
+        rename_session_native, reset_session_native_name, restore_file, search_messages,
     },
     settings::{delete_preset, get_preset, load_presets, save_preset},
     stats::{
@@ -123,6 +123,7 @@ pub fn run() {
             rename_session_native,
             reset_session_native_name,
             rename_opencode_session_title,
+            delete_session_file,
             // File watcher commands
             start_file_watcher,
             stop_file_watcher,

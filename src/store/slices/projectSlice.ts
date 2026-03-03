@@ -41,6 +41,7 @@ export interface ProjectSliceActions {
   initializeApp: () => Promise<void>;
   scanProjects: () => Promise<void>;
   selectProject: (project: ClaudeProject) => Promise<void>;
+  deleteSessionFile: (session: ClaudeSession) => Promise<void>;
   clearProjectSelection: () => void;
   setClaudePath: (path: string) => Promise<void>;
   setError: (error: AppError | null) => void;
@@ -289,6 +290,86 @@ export const createProjectSlice: StateCreator<
     } finally {
       set({ isLoadingSessions: false });
     }
+  },
+
+  deleteSessionFile: async (session: ClaudeSession) => {
+    const state = get();
+    const selectedProject = state.selectedProject;
+    if (!selectedProject) {
+      throw new Error("No project selected");
+    }
+
+    const selectedSession = state.selectedSession;
+    const previousSessions = state.sessions;
+    const currentIndex = previousSessions.findIndex((item) => item.session_id === session.session_id);
+    const provider = session.provider ?? selectedProject.provider ?? "claude";
+
+    const clearSelectionState = () => {
+      set({
+        selectedSession: null,
+        messages: [],
+        pagination: { ...INITIAL_PAGINATION },
+        isLoadingMessages: false,
+      });
+
+      get().clearSessionSearch();
+      get().clearTokenStats();
+      get().resetAnalytics();
+      get().clearBoard();
+      get().clearTargetMessage();
+    };
+
+    await invoke("delete_session_file", {
+      provider,
+      sessionPath: session.file_path,
+    });
+
+    const refreshedSessions = provider !== "claude"
+      ? await invoke<ClaudeSession[]>("load_provider_sessions", {
+          provider,
+          projectPath: selectedProject.path,
+          excludeSidechain: get().excludeSidechain,
+        })
+      : await invoke<ClaudeSession[]>("load_project_sessions", {
+          projectPath: selectedProject.path,
+          excludeSidechain: get().excludeSidechain,
+        });
+
+    set({ sessions: refreshedSessions });
+
+    const removedSelected = selectedSession?.session_id === session.session_id;
+    if (removedSelected) {
+      if (refreshedSessions.length === 0) {
+        clearSelectionState();
+        return;
+      }
+
+      const fallbackIndex = currentIndex < 0
+        ? 0
+        : Math.min(currentIndex, refreshedSessions.length - 1);
+      const nextSession = refreshedSessions[fallbackIndex] ?? refreshedSessions[0];
+      if (nextSession) {
+        await get().selectSession(nextSession);
+      } else {
+        clearSelectionState();
+      }
+      return;
+    }
+
+    if (selectedSession) {
+      const refreshedSelected = refreshedSessions.find(
+        (item) => item.session_id === selectedSession.session_id
+      );
+
+      if (refreshedSelected) {
+        set({ selectedSession: refreshedSelected });
+      } else if (refreshedSessions.length > 0) {
+        await get().selectSession(refreshedSessions[0]);
+      } else {
+        clearSelectionState();
+      }
+    }
+
   },
 
   clearProjectSelection: () => {

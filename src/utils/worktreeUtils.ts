@@ -60,10 +60,12 @@ export function decodeProjectPath(sessionStoragePath: string): string {
  * e.g., /tmp/vibe-kanban/my-project -> my-project
  */
 export function extractProjectName(path: string): string {
-  // Remove trailing slash if present
-  const cleanPath = path.endsWith("/") ? path.slice(0, -1) : path;
-  // Get the last segment
-  const segments = cleanPath.split("/");
+  // Remove trailing path separators and support both slash styles.
+  const cleanPath = path.replace(/[\\/]+$/, "");
+  if (!cleanPath) {
+    return "";
+  }
+  const segments = cleanPath.split(/[\\/]/);
   return segments[segments.length - 1] || "";
 }
 

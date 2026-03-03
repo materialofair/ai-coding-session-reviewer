@@ -57,6 +57,29 @@ describe("ProjectTree tree semantics", () => {
     expect(treeItem).toHaveAttribute("aria-level", "2");
   });
 
+  it("uses final folder name from actual_path for default project label", () => {
+    const project = createProject(
+      "/Users/test/Desktop/github/ios-dev/ZeroNet-Space/openSource/oh-my-cc/oh-my-claudecode",
+      "Desktop-github-ios-dev-ZeroNet-Space-openSource-oh-my-cc-oh-my-claudecode"
+    );
+
+    render(
+      <ProjectItem
+        project={project}
+        isExpanded={false}
+        isSelected={false}
+        ariaLevel={2}
+        onToggle={vi.fn()}
+        onClick={vi.fn()}
+        onContextMenu={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("treeitem", { name: /oh-my-claudecode/i })
+    ).toBeInTheDocument();
+  });
+
   it("renders group header as expandable treeitem", () => {
     render(
       <GroupHeader

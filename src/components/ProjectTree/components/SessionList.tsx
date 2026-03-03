@@ -1,5 +1,5 @@
 // src/components/ProjectTree/components/SessionList.tsx
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList as List } from "react-window";
 import { Search, X, SortDesc, SortAsc } from "lucide-react";
@@ -11,8 +11,8 @@ import { useAppStore } from "@/store/useAppStore";
 import type { SessionListProps } from "../types";
 import type { ClaudeSession } from "../../../types";
 
-// SessionItem의 대략적인 높이 (py-2.5 + 내용)
-const SESSION_ITEM_HEIGHT = 72;
+// Compact SessionItem height estimate for virtualization.
+const SESSION_ITEM_HEIGHT = 40;
 // Virtual scroll을 적용할 최소 세션 수
 const VIRTUALIZATION_THRESHOLD = 20;
 // Virtual list의 최대 표시 높이
@@ -25,13 +25,23 @@ interface SessionRowProps {
     sessions: ClaudeSession[];
     selectedSession: ClaudeSession | null;
     onSessionSelect: (session: ClaudeSession) => void;
+    onSessionDelete?: (session: ClaudeSession) => Promise<void>;
     onSessionHover?: (session: ClaudeSession) => void;
     formatTimeAgo: (date: string) => string;
+    deletingSessionId: string | null;
   };
 }
 
 const SessionRow: React.FC<SessionRowProps> = ({ index, style, data }) => {
-  const { sessions, selectedSession, onSessionSelect, onSessionHover, formatTimeAgo } = data;
+  const {
+    sessions,
+    selectedSession,
+    onSessionSelect,
+    onSessionDelete,
+    onSessionHover,
+    formatTimeAgo,
+    deletingSessionId,
+  } = data;
   const session = sessions[index];
 
   if (!session) {
@@ -44,8 +54,10 @@ const SessionRow: React.FC<SessionRowProps> = ({ index, style, data }) => {
         session={session}
         isSelected={selectedSession?.session_id === session.session_id}
         onSelect={() => onSessionSelect(session)}
+        onDelete={onSessionDelete ? () => onSessionDelete(session) : undefined}
         onHover={() => onSessionHover?.(session)}
         formatTimeAgo={formatTimeAgo}
+        isDeleting={deletingSessionId === session.session_id}
       />
     </div>
   );
@@ -56,12 +68,14 @@ export const SessionList: React.FC<SessionListProps> = ({
   selectedSession,
   isLoading,
   onSessionSelect,
+  onSessionDelete,
   onSessionHover,
   formatTimeAgo,
   variant = "default",
 }) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const { sessionSortOrder, setSessionSortOrder, getSessionDisplayName } = useAppStore();
 
   const isWorktree = variant === "worktree";
@@ -72,7 +86,7 @@ export const SessionList: React.FC<SessionListProps> = ({
       ? "border-l border-accent/30"
       : "border-l-2 border-accent/20";
 
-  const containerClass = isWorktree || isMain ? "ml-4 pl-2" : "ml-6 pl-3";
+  const containerClass = isWorktree || isMain ? "ml-4 pl-1.5" : "ml-5 pl-2.5";
 
   // Filter and sort sessions
   const filteredAndSortedSessions = useMemo(() => {
@@ -102,7 +116,24 @@ export const SessionList: React.FC<SessionListProps> = ({
   }, [sessions, sessionSortOrder, searchQuery, getSessionDisplayName]);
 
   // Show controls only if we have enough sessions
-  const showControls = sessions.length >= 3;
+  const showControls = sessions.length >= 5;
+
+  const handleSessionDelete = useCallback(
+    async (session: ClaudeSession): Promise<void> => {
+      if (!onSessionDelete || deletingSessionId) {
+        return;
+      }
+      setDeletingSessionId(session.session_id);
+      try {
+        await onSessionDelete(session);
+      } finally {
+        setDeletingSessionId((current) =>
+          current === session.session_id ? null : current
+        );
+      }
+    },
+    [deletingSessionId, onSessionDelete]
+  );
 
   // Virtual list에 전달할 데이터 memoize
   const itemData = useMemo(
@@ -110,10 +141,20 @@ export const SessionList: React.FC<SessionListProps> = ({
       sessions: filteredAndSortedSessions,
       selectedSession,
       onSessionSelect,
+      onSessionDelete: handleSessionDelete,
       onSessionHover,
       formatTimeAgo,
+      deletingSessionId,
     }),
-    [filteredAndSortedSessions, selectedSession, onSessionSelect, onSessionHover, formatTimeAgo]
+    [
+      filteredAndSortedSessions,
+      selectedSession,
+      onSessionSelect,
+      handleSessionDelete,
+      onSessionHover,
+      formatTimeAgo,
+      deletingSessionId,
+    ]
   );
 
   // 리스트 높이 계산
@@ -127,12 +168,12 @@ export const SessionList: React.FC<SessionListProps> = ({
 
   if (isLoading) {
     return (
-      <div className={cn(containerClass, borderClass, "space-y-2 py-2")}>
+      <div className={cn(containerClass, borderClass, "space-y-1 py-1")}>
         {[1, 2, isWorktree || isMain ? 0 : 3].filter(Boolean).map((i) => (
-          <div key={i} className="flex items-center gap-2.5 py-2 px-3">
-            <Skeleton variant="circular" className="w-5 h-5" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3 w-3/4" />
+          <div key={i} className="flex items-center gap-2 py-1 px-2.5">
+            <Skeleton variant="circular" className="w-4 h-4" />
+            <div className="flex-1 space-y-1">
+              <Skeleton className="h-2.5 w-3/4" />
               <Skeleton className="h-2 w-1/2" />
             </div>
           </div>
@@ -143,7 +184,7 @@ export const SessionList: React.FC<SessionListProps> = ({
 
   if (sessions.length === 0) {
     return (
-      <div className={cn(containerClass, "py-2 text-2xs text-muted-foreground", isWorktree || isMain ? "ml-5" : "ml-7")}>
+      <div className={cn(containerClass, "py-1 text-2xs text-muted-foreground", isWorktree || isMain ? "ml-5" : "ml-6")}>
         {t("components:session.notFound", "No sessions")}
       </div>
     );
@@ -152,17 +193,17 @@ export const SessionList: React.FC<SessionListProps> = ({
   // 세션 수가 적으면 기존 방식 유지
   if (!useVirtualScroll) {
     return (
-      <div className={cn(containerClass, borderClass, (isWorktree || isMain) && "py-1.5")}>
+      <div className={cn(containerClass, borderClass, (isWorktree || isMain) && "py-1")}>
         {/* Search and Sort Controls */}
         {showControls && (
-          <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border/30">
+          <div className="flex items-center gap-1.5 px-1.5 py-1 border-b border-border/30">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
               <Input
                 placeholder={t('session.filter.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 pl-7 pr-7 text-xs"
+                className="h-6 pl-7 pr-7 text-xs"
               />
               {searchQuery && (
                 <button
@@ -176,7 +217,7 @@ export const SessionList: React.FC<SessionListProps> = ({
             </div>
             <button
               onClick={() => setSessionSortOrder(sessionSortOrder === 'newest' ? 'oldest' : 'newest')}
-              className="p-1.5 rounded hover:bg-muted/50 transition-colors"
+              className="p-1 rounded hover:bg-muted/50 transition-colors"
               aria-label={sessionSortOrder === 'newest'
                 ? t('session.filter.sortOldestFirst')
                 : t('session.filter.sortNewestFirst')}
@@ -194,9 +235,9 @@ export const SessionList: React.FC<SessionListProps> = ({
         )}
 
         {/* Session List */}
-        <div className="space-y-1 py-2">
+        <div className="space-y-0.5 py-1">
           {filteredAndSortedSessions.length === 0 ? (
-            <div className="py-2 text-2xs text-muted-foreground text-center">
+            <div className="py-1 text-2xs text-muted-foreground text-center">
               {t("session.filter.noResults", "No matching sessions")}
             </div>
           ) : (
@@ -206,8 +247,14 @@ export const SessionList: React.FC<SessionListProps> = ({
                 session={session}
                 isSelected={selectedSession?.session_id === session.session_id}
                 onSelect={() => onSessionSelect(session)}
+                onDelete={
+                  onSessionDelete
+                    ? () => handleSessionDelete(session)
+                    : undefined
+                }
                 onHover={() => onSessionHover?.(session)}
                 formatTimeAgo={formatTimeAgo}
+                isDeleting={deletingSessionId === session.session_id}
               />
             ))
           )}
@@ -218,17 +265,17 @@ export const SessionList: React.FC<SessionListProps> = ({
 
   // 세션 수가 많으면 virtual scroll 적용
   return (
-    <div className={cn(containerClass, borderClass, (isWorktree || isMain) && "py-1.5")}>
+    <div className={cn(containerClass, borderClass, (isWorktree || isMain) && "py-1")}>
       {/* Search and Sort Controls */}
       {showControls && (
-        <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border/30">
+        <div className="flex items-center gap-1.5 px-1.5 py-1 border-b border-border/30">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
             <Input
               placeholder={t('session.filter.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 pl-7 pr-7 text-xs"
+              className="h-6 pl-7 pr-7 text-xs"
             />
             {searchQuery && (
               <button
@@ -242,7 +289,7 @@ export const SessionList: React.FC<SessionListProps> = ({
           </div>
           <button
             onClick={() => setSessionSortOrder(sessionSortOrder === 'newest' ? 'oldest' : 'newest')}
-            className="p-1.5 rounded hover:bg-muted/50 transition-colors"
+            className="p-1 rounded hover:bg-muted/50 transition-colors"
             aria-label={sessionSortOrder === 'newest'
               ? t('session.filter.sortOldestFirst')
               : t('session.filter.sortNewestFirst')}
@@ -260,9 +307,9 @@ export const SessionList: React.FC<SessionListProps> = ({
       )}
 
       {/* Virtual Scroll List */}
-      <div className="py-2">
+      <div className="py-1">
         {filteredAndSortedSessions.length === 0 ? (
-          <div className="py-2 text-2xs text-muted-foreground text-center">
+          <div className="py-1 text-2xs text-muted-foreground text-center">
             {t("session.filter.noResults", "No matching sessions")}
           </div>
         ) : (

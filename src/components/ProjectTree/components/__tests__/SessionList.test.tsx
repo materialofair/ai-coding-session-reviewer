@@ -120,6 +120,18 @@ const mockSessions = [
     last_modified: "2026-02-03T10:00:00Z",
     file_path: "/path/to/session3.jsonl",
   }),
+  createMockSession({
+    session_id: "note-4",
+    summary: "Legacy note alpha",
+    last_modified: "2026-02-02T10:00:00Z",
+    file_path: "/path/to/note4.jsonl",
+  }),
+  createMockSession({
+    session_id: "note-5",
+    summary: "Legacy note beta",
+    last_modified: "2026-02-01T10:00:00Z",
+    file_path: "/path/to/note5.jsonl",
+  }),
 ];
 
 describe("SessionList", () => {
@@ -175,11 +187,15 @@ describe("SessionList", () => {
       fireEvent.click(sortButton);
 
       const sessionItems = screen.getAllByTestId(/session-item-/);
+      const testIds = sessionItems.map((item) => item.getAttribute("data-testid"));
 
-      // Should be in order: session-3 (Feb 3), session-1 (Feb 4), session-2 (Feb 5)
-      expect(sessionItems[0]).toHaveAttribute("data-testid", "session-item-session-3");
-      expect(sessionItems[1]).toHaveAttribute("data-testid", "session-item-session-1");
-      expect(sessionItems[2]).toHaveAttribute("data-testid", "session-item-session-2");
+      // Core sessions should remain oldest-first relative ordering.
+      expect(testIds.indexOf("session-item-session-3")).toBeLessThan(
+        testIds.indexOf("session-item-session-1")
+      );
+      expect(testIds.indexOf("session-item-session-1")).toBeLessThan(
+        testIds.indexOf("session-item-session-2")
+      );
     });
 
     it("should show correct sort icon for newest first", () => {
@@ -343,15 +359,15 @@ describe("SessionList", () => {
   });
 
   describe("Search and Sort controls visibility", () => {
-    it("should hide controls when there are fewer than 3 sessions", () => {
-      const fewSessions = [mockSessions[0], mockSessions[1]];
+    it("should hide controls when there are fewer than 5 sessions", () => {
+      const fewSessions = [mockSessions[0], mockSessions[1], mockSessions[2], mockSessions[3]];
       render(<SessionList {...defaultProps} sessions={fewSessions} />);
 
       expect(screen.queryByPlaceholderText("session.filter.searchPlaceholder")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /sort/i })).not.toBeInTheDocument();
     });
 
-    it("should show controls when there are 3 or more sessions", () => {
+    it("should show controls when there are 5 or more sessions", () => {
       render(<SessionList {...defaultProps} />);
 
       expect(screen.getByPlaceholderText("session.filter.searchPlaceholder")).toBeInTheDocument();
@@ -376,6 +392,16 @@ describe("SessionList", () => {
           session_id: "session-3",
           summary: "Different topic",
           last_modified: "2026-02-04T10:00:00Z",
+        }),
+        createMockSession({
+          session_id: "note-4",
+          summary: "Legacy note alpha",
+          last_modified: "2026-02-02T10:00:00Z",
+        }),
+        createMockSession({
+          session_id: "note-5",
+          summary: "Legacy note beta",
+          last_modified: "2026-02-01T10:00:00Z",
         }),
       ];
 
@@ -409,6 +435,16 @@ describe("SessionList", () => {
           session_id: "session-3",
           summary: "Different topic",
           last_modified: "2026-02-04T10:00:00Z",
+        }),
+        createMockSession({
+          session_id: "note-4",
+          summary: "Legacy note alpha",
+          last_modified: "2026-02-02T10:00:00Z",
+        }),
+        createMockSession({
+          session_id: "note-5",
+          summary: "Legacy note beta",
+          last_modified: "2026-02-01T10:00:00Z",
         }),
       ];
 
@@ -480,7 +516,7 @@ describe("SessionList", () => {
     it("should render with default variant", () => {
       const { container } = render(<SessionList {...defaultProps} variant="default" />);
 
-      expect(container.querySelector(".ml-6")).toBeInTheDocument();
+      expect(container.querySelector(".ml-5")).toBeInTheDocument();
     });
 
     it("should render with worktree variant", () => {

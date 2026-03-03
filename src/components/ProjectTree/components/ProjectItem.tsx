@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Folder, GitBranch, Star } from "lucide-react
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { ProjectItemProps } from "../types";
-import { getWorktreeLabel } from "../../../utils/worktreeUtils";
+import { extractProjectName, getWorktreeLabel } from "../../../utils/worktreeUtils";
 import { getProviderId, getProviderLabel } from "../../../utils/providers";
 
 export const ProjectItem: React.FC<ProjectItemProps> = ({
@@ -31,7 +31,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
     ? t("project.main", "main")
     : isWorktree
       ? getWorktreeLabel(project.actual_path)
-      : project.name;
+      : extractProjectName(project.actual_path) || project.name;
 
   const providerId = getProviderId(project.provider);
   const providerLabel = getProviderLabel(
@@ -67,9 +67,9 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
       onContextMenu={onContextMenu}
       style={{ viewTransitionName }}
       className={cn(
-        "w-full flex items-center gap-2",
+        "group w-full flex items-center gap-1.5",
         "text-left transition-all duration-200 rounded-lg cursor-pointer border border-transparent",
-        isGrouped ? "px-2 py-1.5" : "px-4 py-2.5",
+        isGrouped ? "px-1.5 py-1" : "px-3 py-1.5",
         "focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none",
         isGrouped
           ? "hover:bg-accent/10"
@@ -82,61 +82,71 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
         isGrouped && isExpanded && (isMain ? "bg-accent/15" : "bg-emerald-500/15")
       )}
     >
-      {/* Expand Icon */}
+      {/* Leading Icon: default folder/branch, hover to expand/collapse control */}
       <span
-        aria-label={isExpanded ? t("common.collapse", "Collapse") : t("common.expand", "Expand")}
+        title={isWorktree ? "Worktree" : "Project"}
+        onClick={(e) => {
+          if (!isExpandable) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
         className={cn(
-          "transition-all duration-200 p-0.5 -m-0.5 rounded",
-          isExpanded
-            ? isWorktree
-              ? "text-emerald-500"
-              : "text-accent"
-            : "text-muted-foreground"
+          "relative inline-flex flex-shrink-0 items-center justify-center rounded transition-all duration-200",
+          isGrouped ? "h-3.5 w-3.5" : "h-5 w-5",
+          !isGrouped && (isExpanded ? "bg-accent/20" : "bg-muted/50"),
+          isExpandable && "cursor-pointer hover:bg-accent/12"
         )}
       >
-        {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-      </span>
-
-      {/* Icon */}
-      {isGrouped ? (
-        isMain ? (
-          <span title="Project">
-            <Folder
-              className={cn(
-                "w-3.5 h-3.5 transition-colors",
-                isExpanded ? "text-accent" : "text-muted-foreground"
-              )}
-            />
-          </span>
-        ) : (
-          <span title="Worktree">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 flex items-center justify-center transition-opacity duration-150",
+            isExpandable ? "opacity-100 group-hover:opacity-0" : "opacity-100"
+          )}
+        >
+          {isWorktree ? (
             <GitBranch
               className={cn(
-                "w-3.5 h-3.5 transition-colors",
+                "w-3 h-3 transition-colors",
                 isExpanded ? "text-emerald-500" : "text-emerald-600/60 dark:text-emerald-400/60"
               )}
             />
-          </span>
-        )
-      ) : (
-        <div
-          className={cn(
-            "w-6 h-6 rounded-md flex items-center justify-center transition-all duration-300",
-            isExpanded ? "bg-accent/20 text-accent" : "bg-muted/50 text-muted-foreground"
+          ) : (
+            <Folder
+              className={cn(
+                "w-3 h-3 transition-colors",
+                isExpanded ? "text-accent" : "text-muted-foreground"
+              )}
+            />
           )}
-        >
-          <Folder className="w-3.5 h-3.5" />
-        </div>
-      )}
+        </span>
+
+        {isExpandable && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+              isExpanded
+                ? isWorktree
+                  ? "text-emerald-500"
+                  : "text-accent"
+                : "text-muted-foreground"
+            )}
+          >
+            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </span>
+        )}
+      </span>
 
       {/* Project Name */}
       <span
-        className={cn(
-          "min-w-0 truncate flex-1 transition-colors",
-          isGrouped ? "text-xs" : "text-sm",
-          !isGrouped && isSelected && "text-foreground font-semibold",
-          isExpanded
-            ? isWorktree
+          className={cn(
+            "min-w-0 truncate flex-1 transition-colors",
+            isGrouped ? "text-[11px]" : "text-[13px]",
+            !isGrouped && isSelected && "text-foreground font-semibold",
+            isExpanded
+              ? isWorktree
               ? "text-emerald-600 dark:text-emerald-400 font-medium"
               : isGrouped
                 ? "text-accent font-medium"
@@ -155,7 +165,7 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
       {showProviderBadge && (
         <span
           className={cn(
-            "px-1.5 py-0.5 text-2xs font-medium rounded-full flex-shrink-0 leading-none border",
+            "px-1 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 leading-none border",
             providerId === "claude" && "bg-amber-500/15 text-amber-700 dark:text-amber-300",
             providerId === "codex" && "bg-green-500/15 text-green-600 dark:text-green-400",
             providerId === "opencode" && "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -173,11 +183,11 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
       {(!isGrouped && project.session_count > 0) || isGrouped ? (
         <span
           className={cn(
-            "text-2xs font-mono rounded",
+            "text-[10px] font-mono rounded",
             isGrouped
               ? "text-muted-foreground/60"
               : cn(
-                "px-1.5 py-0.5",
+                "px-1 py-0.5",
                 isExpanded ? "text-accent/70 bg-accent/10" : "text-muted-foreground/60"
               )
           )}
@@ -206,14 +216,14 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
             }
           }}
           className={cn(
-            "ml-1 inline-flex items-center justify-center rounded p-1 transition-colors",
+            "ml-1 inline-flex items-center justify-center rounded p-0.5 transition-colors",
             "hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35",
             isFeatured
               ? "text-amber-500"
               : "text-muted-foreground/40 hover:text-amber-500/80"
           )}
         >
-          <Star className={cn("h-3.5 w-3.5", isFeatured && "fill-current")} />
+          <Star className={cn("h-3 w-3", isFeatured && "fill-current")} />
         </span>
       )}
     </button>

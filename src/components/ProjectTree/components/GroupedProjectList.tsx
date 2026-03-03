@@ -28,6 +28,7 @@ interface GroupedProjectListProps {
   isProjectFeatured?: (projectPath: string) => boolean;
   onToggleProjectFeatured?: (projectPath: string) => void;
   onSessionSelect: (session: ClaudeSession) => void;
+  onSessionDelete?: (session: ClaudeSession) => Promise<void>;
   onSessionHover?: (session: ClaudeSession) => void;
   formatTimeAgo: (date: string) => string;
 }
@@ -51,6 +52,7 @@ export const GroupedProjectList: React.FC<GroupedProjectListProps> = ({
   isProjectFeatured,
   onToggleProjectFeatured,
   onSessionSelect,
+  onSessionDelete,
   onSessionHover,
   formatTimeAgo,
 }) => {
@@ -102,6 +104,7 @@ export const GroupedProjectList: React.FC<GroupedProjectListProps> = ({
               selectedSession={selectedSession}
               isLoading={isLoading}
               onSessionSelect={onSessionSelect}
+              onSessionDelete={onSessionDelete}
               onSessionHover={onSessionHover}
               formatTimeAgo={formatTimeAgo}
               variant={variant}

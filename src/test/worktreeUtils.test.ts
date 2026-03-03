@@ -95,6 +95,14 @@ describe("extractProjectName", () => {
     expect(extractProjectName("/Users/jack/my-project/")).toBe("my-project");
   });
 
+  it("should handle Windows path separators", () => {
+    expect(extractProjectName("C:\\Users\\jack\\my-project")).toBe("my-project");
+  });
+
+  it("should handle Windows path with trailing separator", () => {
+    expect(extractProjectName("C:\\Users\\jack\\my-project\\")).toBe("my-project");
+  });
+
   it("should extract project name from tmp path", () => {
     expect(extractProjectName("/tmp/vibe-kanban/my-project")).toBe("my-project");
   });

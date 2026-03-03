@@ -209,6 +209,7 @@ export interface AppStoreActions {
   setError: (error: AppError | null) => void;
   setSelectedSession: (session: ClaudeSession | null) => void;
   setSessions: (sessions: ClaudeSession[]) => void;
+  deleteSessionFile: (session: ClaudeSession) => Promise<void>;
 
   // Message actions
   selectSession: (session: ClaudeSession) => Promise<void>;

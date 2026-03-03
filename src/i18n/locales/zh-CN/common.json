@@ -80,6 +80,7 @@
   "common.settings.updateSettings": "更新设置",
   "common.show": "显示",
   "common.time.daysAgo": "{{count}}天前",
+  "common.time.weeksAgo": "{{count}}周前",
   "common.time.duration": "持续时间",
   "common.time.end": "结束：",
   "common.time.endTime": "结束时间",

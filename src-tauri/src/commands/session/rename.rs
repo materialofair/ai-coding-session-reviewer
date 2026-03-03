@@ -62,7 +62,7 @@ impl std::fmt::Display for RenameError {
     }
 }
 
-fn parse_opencode_session_path(session_path: &str) -> Result<(String, String), String> {
+pub(crate) fn parse_opencode_session_path(session_path: &str) -> Result<(String, String), String> {
     let path_part = session_path
         .strip_prefix("opencode://")
         .ok_or_else(|| RenameError::InvalidSessionPath(session_path.to_string()).to_string())?;
@@ -201,7 +201,7 @@ pub async fn rename_session_native(
 /// 1. Path must be absolute
 /// 2. No symlinks allowed in any path component
 /// 3. Filename must match pattern ^[A-Za-z0-9_-]+$
-fn validate_claude_path(file_path: &str) -> Result<(), String> {
+pub(crate) fn validate_claude_path(file_path: &str) -> Result<(), String> {
     let file_path_buf = std::path::PathBuf::from(file_path);
 
     // 1. Require absolute path

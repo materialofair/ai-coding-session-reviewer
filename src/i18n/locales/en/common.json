@@ -80,6 +80,7 @@
   "common.settings.updateSettings": "Update Settings",
   "common.show": "Show",
   "common.time.daysAgo": "{{count}} day ago",
+  "common.time.weeksAgo": "{{count}} week ago",
   "common.time.duration": "Duration",
   "common.time.end": "End:",
   "common.time.endTime": "End Time",
