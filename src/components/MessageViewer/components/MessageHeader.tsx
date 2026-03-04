@@ -33,12 +33,10 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
     )
     : null;
   const isLeftAligned =
-    message.type !== "user" || isToolResultMessage || isSystemContent;
+    message.type !== "user" || isToolResultMessage;
   const speakerLabel = isToolResultMessage && toolName
     ? toolName
-    : isSystemContent
-      ? t("messageViewer.system")
-      : message.type === "user"
+    : message.type === "user"
         ? t("messageViewer.user")
     : message.type === "assistant"
           ? (message.provider === "codex"
@@ -47,7 +45,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
               ? "OpenCode"
               : t("messageViewer.claude"))
           : t("messageViewer.system");
-  const showSpeakerBadge = !isPlainConversationMessage;
+  const showSpeakerBadge = !isPlainConversationMessage && !isSystemContent;
   const showModelDetails =
     !compact &&
     message.type === "assistant" &&
@@ -83,7 +81,7 @@ export const MessageHeader: React.FC<MessageHeaderProps> = ({ message, compact =
 
       {showModelDetails && (
         <div className="relative group flex items-center gap-1.5">
-          <span className="text-muted-foreground">{getShortModelName(message.model)}</span>
+          <span className="text-muted-foreground">{getShortModelName(message.model ?? "")}</span>
           {message.usage && (
             <>
               <HelpCircle className="w-3 h-3 cursor-help text-muted-foreground" />

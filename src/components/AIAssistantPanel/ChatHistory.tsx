@@ -11,6 +11,14 @@ export function ChatHistory() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const last = aiMessages[aiMessages.length - 1];
+    console.debug("[AI_TRACE] [ChatHistory] messagesChanged", {
+      count: aiMessages.length,
+      lastId: last?.id ?? null,
+      lastRole: last?.role ?? null,
+      lastStreaming: last?.isStreaming ?? null,
+      lastLen: last?.content?.length ?? 0,
+    });
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages]);
 

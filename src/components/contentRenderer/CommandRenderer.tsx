@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Terminal, CheckCircle, AlertCircle, Info, ChevronRight } from "lucide-react";
+import { Terminal, CheckCircle, AlertCircle, Info, ChevronRight, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,6 +22,11 @@ interface CommandGroup {
   args?: string;
 }
 
+interface ParsedArgs {
+  files: string[];
+  description: string;
+}
+
 interface OutputTag {
   type: "stdout" | "stderr" | "other";
   name: string;
@@ -31,6 +36,30 @@ interface OutputTag {
 interface CaveatBlock {
   content: string;
 }
+
+/**
+ * Parse command arguments to separate file paths from description text.
+ * Uses heuristics to identify file paths (contains / or . extension).
+ */
+const parseCommandArgs = (args: string): ParsedArgs => {
+  const tokens = args.trim().split(/\s+/);
+  const files: string[] = [];
+  const descWords: string[] = [];
+
+  for (const token of tokens) {
+    // File path heuristic: contains / or \ or has file extension
+    if (/[/\\]/.test(token) || /\.\w+$/.test(token)) {
+      files.push(token);
+    } else {
+      descWords.push(token);
+    }
+  }
+
+  return {
+    files,
+    description: descWords.join(' '),
+  };
+};
 
 export const CommandRenderer = ({
   text,
@@ -203,26 +232,81 @@ export const CommandRenderer = ({
 
           {isCommandExpanded && hasExpandableContent && (
             <div className={layout.contentPadding}>
-              {/* Command args if present */}
-              {commandGroup.args && (
-                <div className={cn("flex items-start mb-1.5", layout.iconSpacing)}>
-                  <span className={cn("text-[11px] font-medium mt-0.5 min-w-[40px] text-accent")}>
-                    {t("commandRenderer.arguments")}
-                  </span>
-                  <code className={cn("px-1.5 py-0.5 text-[11px]", layout.rounded, "font-mono whitespace-pre-wrap bg-tool-search/20 text-tool-search")}>
-                    {searchQuery ? (
-                      <HighlightedText
-                        text={commandGroup.args}
-                        searchQuery={searchQuery}
-                        isCurrentMatch={isCurrentMatch}
-                        currentMatchIndex={currentMatchIndex}
-                      />
-                    ) : (
-                      commandGroup.args
+              {/* Command args if present - parsed into files and description */}
+              {commandGroup.args && (() => {
+                const parsedArgs = parseCommandArgs(commandGroup.args);
+                const hasFiles = parsedArgs.files.length > 0;
+                const hasDescription = parsedArgs.description.length > 0;
+
+                return (
+                  <div className="space-y-2">
+                    {/* File paths */}
+                    {hasFiles && (
+                      <div className="flex items-start gap-2">
+                        <FileText className={cn("w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-accent")} />
+                        <div className="flex flex-wrap gap-1.5">
+                          {parsedArgs.files.map((file, i) => (
+                            <code
+                              key={i}
+                              className={cn(
+                                "px-2 py-0.5 text-[11px]",
+                                layout.rounded,
+                                "font-mono bg-accent/15 text-accent border border-accent/30"
+                              )}
+                            >
+                              {searchQuery ? (
+                                <HighlightedText
+                                  text={file}
+                                  searchQuery={searchQuery}
+                                  isCurrentMatch={isCurrentMatch}
+                                  currentMatchIndex={currentMatchIndex}
+                                />
+                              ) : (
+                                file
+                              )}
+                            </code>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                  </code>
-                </div>
-              )}
+
+                    {/* Description text */}
+                    {hasDescription && (
+                      <div className={cn(
+                        "text-xs text-foreground/80 leading-relaxed",
+                        hasFiles && "pl-5"
+                      )}>
+                        {searchQuery ? (
+                          <HighlightedText
+                            text={parsedArgs.description}
+                            searchQuery={searchQuery}
+                            isCurrentMatch={isCurrentMatch}
+                            currentMatchIndex={currentMatchIndex}
+                          />
+                        ) : (
+                          parsedArgs.description
+                        )}
+                      </div>
+                    )}
+
+                    {/* Fallback: if parsing failed to separate anything, show raw args */}
+                    {!hasFiles && !hasDescription && (
+                      <code className={cn("block px-2 py-1 text-[11px]", layout.rounded, "font-mono whitespace-pre-wrap bg-tool-search/20 text-tool-search")}>
+                        {searchQuery ? (
+                          <HighlightedText
+                            text={commandGroup.args}
+                            searchQuery={searchQuery}
+                            isCurrentMatch={isCurrentMatch}
+                            currentMatchIndex={currentMatchIndex}
+                          />
+                        ) : (
+                          commandGroup.args
+                        )}
+                      </code>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Command message/status if present */}
               {commandGroup.message && (

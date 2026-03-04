@@ -75,5 +75,14 @@
   "aiAssistant.status.streaming": "応答受信中",
   "aiAssistant.dataSource.label": "データソース",
   "aiAssistant.dataSource.auto": "自動(選択中)",
-  "aiAssistant.error.emptyContext": "選択したセッションに読み取れるコンテンツが見つかりません。別のデータソースを選択してください。"
+  "aiAssistant.error.emptyContext": "選択したセッションに読み取れるコンテンツが見つかりません。別のデータソースを選択してください。",
+  "aiAssistant.session.saved": "チャットセッションを保存しました",
+  "aiAssistant.session.loaded": "{{count}}件のチャットセッションを読み込みました",
+  "aiAssistant.session.deleted": "チャットセッションを削除しました",
+  "aiAssistant.session.saveError": "チャットセッションの保存に失敗しました",
+  "aiAssistant.session.loadError": "チャットセッションの読み込みに失敗しました",
+  "aiAssistant.session.deleteError": "チャットセッションの削除に失敗しました",
+  "aiAssistant.session.autoSave": "自動保存中...",
+  "aiAssistant.session.history": "チャット履歴",
+  "aiAssistant.session.noHistory": "まだチャット履歴がありません"
 }

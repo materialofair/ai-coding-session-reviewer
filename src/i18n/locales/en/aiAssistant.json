@@ -75,5 +75,14 @@
   "aiAssistant.status.streaming": "Receiving response",
   "aiAssistant.dataSource.label": "Data Source",
   "aiAssistant.dataSource.auto": "Auto (selected)",
-  "aiAssistant.error.emptyContext": "No readable content found in the selected sessions. Try selecting a different data source."
+  "aiAssistant.error.emptyContext": "No readable content found in the selected sessions. Try selecting a different data source.",
+  "aiAssistant.session.saved": "Chat session saved",
+  "aiAssistant.session.loaded": "{{count}} chat sessions loaded",
+  "aiAssistant.session.deleted": "Chat session deleted",
+  "aiAssistant.session.saveError": "Failed to save chat session",
+  "aiAssistant.session.loadError": "Failed to load chat sessions",
+  "aiAssistant.session.deleteError": "Failed to delete chat session",
+  "aiAssistant.session.autoSave": "Auto-saving...",
+  "aiAssistant.session.history": "Chat History",
+  "aiAssistant.session.noHistory": "No chat history yet"
 }

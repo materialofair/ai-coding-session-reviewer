@@ -356,6 +356,9 @@ export interface AppStoreActions {
   setIsAiAnalyzing: (v: boolean) => void;
   setIsAiStreaming: (v: boolean) => void;
   setActiveRequestId: (id: string | null) => void;
+  loadAcpSessions: () => Promise<void>;
+  saveCurrentAcpSession: () => Promise<void>;
+  autoSaveAcpSession: (sessionId: string) => void;
 }
 
 export type FullAppStore = AppStoreState & AppStoreActions;

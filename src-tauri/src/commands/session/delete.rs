@@ -84,7 +84,9 @@ fn delete_opencode_session_file(session_path: &str) -> Result<String, String> {
     let opencode_base_path = crate::providers::opencode::get_base_path()
         .ok_or_else(|| "OpenCode base path not found".to_string())?;
 
-    let sessions_root = Path::new(&opencode_base_path).join("storage").join("session");
+    let sessions_root = Path::new(&opencode_base_path)
+        .join("storage")
+        .join("session");
     let session_file = sessions_root
         .join(project_id)
         .join(format!("{session_id}.json"));

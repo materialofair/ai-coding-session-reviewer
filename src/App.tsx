@@ -99,6 +99,7 @@ function App() {
     isNavigatorOpen,
     toggleNavigator,
     activeProviders,
+    loadAcpSessions,
   } = useAppStore();
 
   const {
@@ -263,6 +264,17 @@ function App() {
     };
     initialize();
   }, [initializeApp, loadLanguage]);
+
+  useEffect(() => {
+    const loadAcpSessionsOnStartup = async () => {
+      try {
+        await loadAcpSessions();
+      } catch (error) {
+        console.error("Failed to load ACP sessions:", error);
+      }
+    };
+    loadAcpSessionsOnStartup();
+  }, [loadAcpSessions]);
 
   useEffect(() => {
     const scale = Number.isFinite(fontScale) ? fontScale / 100 : 1;

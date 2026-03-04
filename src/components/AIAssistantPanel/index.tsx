@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight, Plus } from "lucide-react";
+import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight, Plus, History } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useAiAssistant } from "../../hooks/useAiAssistant";
@@ -7,6 +7,14 @@ import { ChatHistory } from "./ChatHistory";
 import { ChatInput } from "./ChatInput";
 import { ProviderSelector } from "./ProviderSelector";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function AIAssistantPanel() {
   const { t } = useTranslation();
@@ -23,6 +31,7 @@ export function AIAssistantPanel() {
     activeAiChatSessionId,
     createAiChatSession,
     switchAiChatSession,
+    deleteAiChatSession,
     setAiAnalysisScope,
   } = useAppStore((s) => ({
     isAiPanelOpen: s.isAiPanelOpen,
@@ -37,6 +46,7 @@ export function AIAssistantPanel() {
     activeAiChatSessionId: s.activeAiChatSessionId,
     createAiChatSession: s.createAiChatSession,
     switchAiChatSession: s.switchAiChatSession,
+    deleteAiChatSession: s.deleteAiChatSession,
     setAiAnalysisScope: s.setAiAnalysisScope,
   }));
 
@@ -49,6 +59,7 @@ export function AIAssistantPanel() {
   });
 
   const { sendMessage, exportReport } = useAiAssistant();
+  const canDeleteSessions = aiChatSessions.length > 1;
 
   if (!isAiPanelOpen) {
     return (
@@ -133,6 +144,74 @@ export function AIAssistantPanel() {
               </option>
             ))}
           </select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-1.5 text-[10px] gap-1"
+                disabled={isAiStreaming || isAiAnalyzing}
+                title={t("aiAssistant.session.history")}
+              >
+                <History className="w-3 h-3" />
+                <span className="text-[9px] opacity-70">({aiChatSessions.length})</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-xs">
+                {t("aiAssistant.session.history")}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {aiChatSessions.length === 0 ? (
+                <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                  {t("aiAssistant.session.noHistory")}
+                </div>
+              ) : (
+                aiChatSessions.map((session) => (
+                  <DropdownMenuItem
+                    key={session.id}
+                    onClick={() => switchAiChatSession(session.id)}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="flex-1 truncate">
+                      <div className="font-medium truncate">{session.title}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {session.messages.length} {t("aiAssistant.chat.assistant", "messages")}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {session.id === activeAiChatSessionId && (
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                      )}
+                      {canDeleteSessions && (
+                        <button
+                          type="button"
+                          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          aria-label={t("aiAssistant.chat.deleteSession", {
+                            defaultValue: "删除会话",
+                          })}
+                          title={t("aiAssistant.chat.deleteSession", {
+                            defaultValue: "删除会话",
+                          })}
+                          onPointerDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            deleteAiChatSession(session.id);
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="sm"
@@ -142,7 +221,6 @@ export function AIAssistantPanel() {
             title={t("aiAssistant.chat.newSession")}
           >
             <Plus className="w-3 h-3" />
-            {t("aiAssistant.chat.newSession")}
           </Button>
         </div>
 

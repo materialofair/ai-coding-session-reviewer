@@ -7,6 +7,10 @@ pub mod utils;
 pub mod test_utils;
 
 use crate::commands::{
+    acp_sessions::{
+        append_acp_message, delete_acp_session, list_acp_sessions, load_acp_session,
+        save_acp_session,
+    },
     ai_assistant::{
         analyze_session, chat_with_ai, detect_cli, detect_unresolved_issues, export_ai_report,
         get_provider_session_paths,
@@ -140,6 +144,12 @@ pub fn run() {
             chat_with_ai,
             detect_unresolved_issues,
             export_ai_report,
+            // ACP session commands
+            list_acp_sessions,
+            load_acp_session,
+            save_acp_session,
+            delete_acp_session,
+            append_acp_message,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

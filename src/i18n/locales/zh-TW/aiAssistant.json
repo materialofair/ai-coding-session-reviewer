@@ -75,5 +75,14 @@
   "aiAssistant.status.streaming": "接收回應中",
   "aiAssistant.dataSource.label": "資料來源",
   "aiAssistant.dataSource.auto": "自動(目前選擇)",
-  "aiAssistant.error.emptyContext": "所選會話中沒有可讀取的內容，請嘗試選擇其他資料來源。"
+  "aiAssistant.error.emptyContext": "所選會話中沒有可讀取的內容，請嘗試選擇其他資料來源。",
+  "aiAssistant.session.saved": "對話工作階段已儲存",
+  "aiAssistant.session.loaded": "已載入 {{count}} 個對話工作階段",
+  "aiAssistant.session.deleted": "對話工作階段已刪除",
+  "aiAssistant.session.saveError": "儲存對話工作階段失敗",
+  "aiAssistant.session.loadError": "載入對話工作階段失敗",
+  "aiAssistant.session.deleteError": "刪除對話工作階段失敗",
+  "aiAssistant.session.autoSave": "自動儲存中...",
+  "aiAssistant.session.history": "對話歷史",
+  "aiAssistant.session.noHistory": "尚無對話歷史"
 }

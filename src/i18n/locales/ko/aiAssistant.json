@@ -75,5 +75,14 @@
   "aiAssistant.status.streaming": "응답 수신 중",
   "aiAssistant.dataSource.label": "데이터 소스",
   "aiAssistant.dataSource.auto": "자동(선택됨)",
-  "aiAssistant.error.emptyContext": "선택한 세션에서 읽을 수 있는 내용을 찾을 수 없습니다. 다른 데이터 소스를 선택해 보세요."
+  "aiAssistant.error.emptyContext": "선택한 세션에서 읽을 수 있는 내용을 찾을 수 없습니다. 다른 데이터 소스를 선택해 보세요.",
+  "aiAssistant.session.saved": "대화 세션이 저장되었습니다",
+  "aiAssistant.session.loaded": "{{count}}개의 대화 세션을 불러왔습니다",
+  "aiAssistant.session.deleted": "대화 세션이 삭제되었습니다",
+  "aiAssistant.session.saveError": "대화 세션 저장 실패",
+  "aiAssistant.session.loadError": "대화 세션 불러오기 실패",
+  "aiAssistant.session.deleteError": "대화 세션 삭제 실패",
+  "aiAssistant.session.autoSave": "자동 저장 중...",
+  "aiAssistant.session.history": "대화 기록",
+  "aiAssistant.session.noHistory": "아직 대화 기록이 없습니다"
 }

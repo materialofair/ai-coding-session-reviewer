@@ -1,43 +1,16 @@
-import React, { useState, useMemo, Children, isValidElement } from "react";
+import React, { useState, Children, isValidElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CommandRenderer, ImageRenderer, TaskNotificationRenderer, hasTaskNotification } from "../contentRenderer";
+import { ImageRenderer, TaskNotificationRenderer, hasTaskNotification } from "../contentRenderer";
 import { isImageUrl, isBase64Image } from "../../utils/messageUtils";
 import { TooltipButton } from "../../shared/TooltipButton";
 import { HighlightedText } from "../common";
 import { layout } from "@/components/renderers";
 import { cn } from "@/lib/utils";
 
-const LINE_LIMIT = 3;
 const TABLE_ROW_LIMIT = 2;
-
-// Get line count and preview text
-const getTextInfo = (text: string) => {
-  const lines = text.split('\n');
-  const lineCount = lines.length;
-  const previewLines = lines.slice(0, LINE_LIMIT);
-
-  // If truncated preview has an unclosed code fence, remove it to avoid
-  // rendering an empty/broken code block (fixes GitHub issue #66)
-  const preview = previewLines.join('\n');
-  const fenceCount = (preview.match(/^```/gm) || []).length;
-  if (fenceCount % 2 !== 0) {
-    // Remove trailing unclosed fence and any trailing empty lines
-    while (previewLines.length > 0) {
-      const last = previewLines[previewLines.length - 1] ?? '';
-      if (last.startsWith('```') || last.trim() === '') {
-        previewLines.pop();
-      } else {
-        break;
-      }
-    }
-  }
-
-  const cleanPreview = previewLines.join('\n');
-  return { lineCount, preview: cleanPreview, needsExpand: lineCount > LINE_LIMIT };
-};
 
 // Collapsible table component for markdown
 const CollapsibleTable = ({ children, ...props }: React.HTMLAttributes<HTMLTableElement>) => {
@@ -124,15 +97,6 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
   currentMatchIndex = 0,
 }) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Check if content needs expand (for both user and assistant)
-  const textInfo = useMemo(() => {
-    if (typeof content === "string") {
-      return getTextInfo(content);
-    }
-    return { lineCount: 0, preview: "", needsExpand: false };
-  }, [content]);
 
   if (!content) return null;
 
@@ -153,7 +117,18 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
       /<[^>]*-stderr>[\s\S]*?<\/[^>]*>/.test(content);
 
     if (hasCommandTags) {
-      return <CommandRenderer text={content} />;
+      // Extract command components and format as plain text
+      const commandNameMatch = content.match(/<command-name>\s*(.*?)\s*<\/command-name>/s);
+      const commandArgsMatch = content.match(/<command-args>\s*(.*?)\s*<\/command-args>/s);
+
+      const commandName = commandNameMatch?.[1]?.trim() || '';
+      const commandArgs = commandArgsMatch?.[1]?.trim() || '';
+
+      // Format as: /command arg1 arg2 description...
+      const formattedContent = commandName + (commandArgs ? ' ' + commandArgs : '');
+
+      // Replace the content with formatted version for rendering
+      content = formattedContent;
     }
 
     if (isImageUrl(content) || isBase64Image(content)) {
@@ -192,9 +167,6 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
   }
 
   if (messageType === "user") {
-    const showPreview = textInfo.needsExpand && !isExpanded && !searchQuery;
-    const displayContent = showPreview ? textInfo.preview : content;
-
     return (
       <div className="mb-2 flex justify-end">
         <div
@@ -216,31 +188,9 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
                 currentMatchIndex={currentMatchIndex}
               />
             ) : (
-              displayContent
+              content
             )}
           </div>
-
-          {/* Show more / Show less button */}
-          {textInfo.needsExpand && !searchQuery && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className={cn(
-                "flex items-center gap-1 mt-1.5 text-2xs",
-                "text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100",
-                "transition-colors"
-              )}
-            >
-              <ChevronDown className={cn(
-                "w-3 h-3 transition-transform",
-                isExpanded && "rotate-180"
-              )} />
-              <span>
-                {isExpanded
-                  ? t("messageContentDisplay.showLess", { defaultValue: "Show less" })
-                  : t("messageContentDisplay.showMore", { defaultValue: "Show more..." })}
-              </span>
-            </button>
-          )}
 
           <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <TooltipButton
@@ -255,9 +205,6 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
       </div>
     );
   } else if (messageType === "assistant") {
-    const showPreview = textInfo.needsExpand && !isExpanded && !searchQuery;
-    const displayContent = showPreview ? textInfo.preview : content;
-
     return (
       <div className="mb-2 flex justify-start">
         <div
@@ -266,7 +213,7 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
             "text-foreground"
           )}
         >
-          {/* 검색 중일 때는 plain text로 렌더링 (성능 + 하이라이팅) */}
+          {/* 检索中时使用 plain text 渲染（性能 + 高亮） */}
           {searchQuery ? (
             <div className={`whitespace-pre-wrap break-words ${layout.bodyText}`}>
               <HighlightedText
@@ -291,33 +238,10 @@ export const MessageContentDisplay: React.FC<MessageContentDisplayProps> = ({
                   table: CollapsibleTable,
                 }}
               >
-                {displayContent}
+                {content}
               </ReactMarkdown>
             </div>
           )}
-
-          {/* Show more / Show less button */}
-          {textInfo.needsExpand && !searchQuery && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className={cn(
-                "flex items-center gap-1 mt-2 text-2xs",
-                "text-muted-foreground hover:text-foreground",
-                "transition-colors"
-              )}
-            >
-              <ChevronDown className={cn(
-                "w-3 h-3 transition-transform",
-                isExpanded && "rotate-180"
-              )} />
-              <span>
-                {isExpanded
-                  ? t("messageContentDisplay.showLess", { defaultValue: "Show less" })
-                  : t("messageContentDisplay.showMore", { defaultValue: "Show more..." })}
-              </span>
-            </button>
-          )}
-
         </div>
       </div>
     );

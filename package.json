@@ -1,7 +1,7 @@
 {
   "name": "ai-coding-session-reviewer",
   "private": true,
-  "version": "1.5.3",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,10 @@
     "lint": "eslint src",
     "preview": "vite preview",
     "test": "vitest",
+    "test:ai-assistant-e2e": "vitest run src/test/aiAssistant.acp-panel.e2e.test.tsx",
+    "e2e:acp-protocol": "node scripts/e2e/acp-chat-flow.mjs",
+    "e2e:macos-ui-acp": "node scripts/e2e/macos-native-ui-acp.mjs",
+    "e2e:acp-panel": "pnpm test:ai-assistant-e2e && pnpm e2e:acp-protocol",
     "generate:i18n-types": "node scripts/generate-i18n-types.mjs",
     "i18n:flatten": "node scripts/flatten-i18n.mjs",
     "i18n:sync": "node scripts/sync-i18n-keys.mjs",

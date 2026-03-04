@@ -9,19 +9,32 @@ import type { AiChatMessage } from "../store/slices/aiAssistantSlice";
 
 interface StreamChunk {
   requestId: string;
+  request_id?: string;
   delta: string;
   elapsedMs: number;
+  elapsed_ms?: number;
 }
 
 interface StreamDone {
   requestId: string;
+  request_id?: string;
   elapsedMs: number;
+  elapsed_ms?: number;
 }
 
 interface StreamError {
   requestId: string;
+  request_id?: string;
   error: string;
   code: string;
+}
+
+function trace(message: string, detail?: unknown) {
+  if (detail === undefined) {
+    console.debug(`[AI_TRACE] ${message}`);
+    return;
+  }
+  console.debug(`[AI_TRACE] ${message}`, detail);
 }
 
 export function useAiAssistant() {
@@ -40,16 +53,49 @@ export function useAiAssistant() {
     let cancelled = false;
 
     const setupListeners = async () => {
+      trace("setupListeners:start");
       const u1 = await listen<StreamChunk>("ai_stream_chunk", ({ payload }) => {
-        store.appendAiStreamDelta(payload.requestId, payload.delta);
+        const requestId = payload.requestId ?? payload.request_id ?? "";
+        const elapsedMs = payload.elapsedMs ?? payload.elapsed_ms ?? 0;
+        trace("event:ai_stream_chunk", {
+          requestId,
+          deltaLen: payload.delta.length,
+          elapsedMs,
+          payloadKeys: Object.keys(payload ?? {}),
+        });
+        if (!requestId) {
+          trace("event:ai_stream_chunk:missingRequestId", payload);
+          return;
+        }
+        store.appendAiStreamDelta(requestId, payload.delta);
       });
       const u2 = await listen<StreamDone>("ai_stream_done", ({ payload }) => {
-        store.finalizeAiStream(payload.requestId);
+        const requestId = payload.requestId ?? payload.request_id ?? "";
+        trace("event:ai_stream_done", {
+          ...payload,
+          resolvedRequestId: requestId,
+          payloadKeys: Object.keys(payload ?? {}),
+        });
+        if (!requestId) {
+          trace("event:ai_stream_done:missingRequestId", payload);
+          return;
+        }
+        store.finalizeAiStream(requestId);
         store.setIsAiAnalyzing(false);
         store.setIsAiStreaming(false);
       });
       const u3 = await listen<StreamError>("ai_stream_error", ({ payload }) => {
-        store.finalizeAiStream(payload.requestId);
+        const requestId = payload.requestId ?? payload.request_id ?? "";
+        trace("event:ai_stream_error", {
+          ...payload,
+          resolvedRequestId: requestId,
+          payloadKeys: Object.keys(payload ?? {}),
+        });
+        if (requestId) {
+          store.finalizeAiStream(requestId);
+        } else {
+          trace("event:ai_stream_error:missingRequestId", payload);
+        }
         store.setIsAiAnalyzing(false);
         store.setIsAiStreaming(false);
         const msg = getErrorMessage(t, payload.code, payload.error, store.selectedAiProvider);
@@ -58,16 +104,19 @@ export function useAiAssistant() {
 
       if (cancelled) {
         // Effect cleaned up before async completed — unlisten immediately
+        trace("setupListeners:cancelled-before-ready");
         u1();
         u2();
         u3();
         return;
       }
       unlistenRef.current = [u1, u2, u3];
+      trace("setupListeners:ready");
     };
 
     setupListeners();
     return () => {
+      trace("setupListeners:cleanup");
       cancelled = true;
       unlistenRef.current.forEach((u) => u());
       unlistenRef.current = [];
@@ -77,13 +126,21 @@ export function useAiAssistant() {
   const getSessionPaths = useCallback(async (): Promise<string[]> => {
     const state = useAppStore.getState();
     const dataSource = state.aiDataSourceProvider;
+    trace("getSessionPaths:start", {
+      dataSource,
+      selectedSession: state.selectedSession?.session_id ?? null,
+      selectedProject: state.selectedProject?.name ?? null,
+      scope: state.aiAnalysisScope,
+    });
 
     // Non-auto: fetch all session files for the specified provider from disk
     if (dataSource !== "auto") {
       try {
         const paths = await invoke<string[]>("get_provider_session_paths", { provider: dataSource });
+        trace("getSessionPaths:provider", { provider: dataSource, count: paths.length });
         return paths;
       } catch (error) {
+        trace("getSessionPaths:error", String(error));
         toast.error(t("aiAssistant.error.unknown", { message: String(error) }));
         return [];
       }
@@ -94,22 +151,30 @@ export function useAiAssistant() {
     // 2) selected project (without session) -> all sessions in that project
     // 3) fallback to manual scope behavior
     if (state.selectedSession?.file_path) {
+      trace("getSessionPaths:fromSelectedSession");
       return [state.selectedSession.file_path];
     }
 
     if (state.selectedProject) {
-      return state.sessions.map((s) => s.file_path).filter(Boolean);
+      const paths = state.sessions.map((s) => s.file_path).filter(Boolean);
+      trace("getSessionPaths:fromSelectedProject", { count: paths.length });
+      return paths;
     }
 
     if (state.aiAnalysisScope === "all") {
-      return state.sessions.map((s) => s.file_path).filter(Boolean);
+      const paths = state.sessions.map((s) => s.file_path).filter(Boolean);
+      trace("getSessionPaths:fromAllScope", { count: paths.length });
+      return paths;
     }
+    trace("getSessionPaths:empty");
     return [];
   }, [store.aiAnalysisScope, store.aiDataSourceProvider, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startAnalysis = useCallback(async () => {
+    trace("startAnalysis:start");
     const sessionPaths = await getSessionPaths();
     if (sessionPaths.length === 0) {
+      trace("startAnalysis:noSessionPaths");
       toast.error(t("aiAssistant.analysis.noSession"));
       return;
     }
@@ -127,13 +192,20 @@ export function useAiAssistant() {
     });
 
     try {
+      trace("startAnalysis:invoke:analyze_session", {
+        requestId,
+        sessionPathCount: sessionPaths.length,
+        provider: store.selectedAiProvider,
+      });
       await invoke("analyze_session", {
         sessionPaths,
         analysisType: store.aiAnalysisType,
         provider: store.selectedAiProvider,
         requestId,
       });
+      trace("startAnalysis:invoke:resolved", { requestId });
     } catch (error) {
+      trace("startAnalysis:invoke:rejected", { requestId, error: String(error) });
       store.finalizeAiStream(requestId);
       store.setIsAiAnalyzing(false);
       store.setIsAiStreaming(false);
@@ -143,9 +215,31 @@ export function useAiAssistant() {
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || store.isAiStreaming) return;
+      trace("sendMessage:start", {
+        textLen: text.length,
+        trimmedLen: text.trim().length,
+        isAiStreaming: store.isAiStreaming,
+        selectedProvider: store.selectedAiProvider,
+        activeSessionId: useAppStore.getState().activeAiChatSessionId,
+      });
+      if (!text.trim() || store.isAiStreaming) {
+        trace("sendMessage:blocked:emptyOrStreaming");
+        return;
+      }
       if (store.aiMessages.length >= 20) {
+        trace("sendMessage:blocked:limitReached", { current: store.aiMessages.length });
         toast.error(t("aiAssistant.chat.limitReached", { max: "10" }));
+        return;
+      }
+
+      // Check if CLI is installed
+      const cliStatus = store.cliStatuses[store.selectedAiProvider];
+      if (!cliStatus?.installed) {
+        trace("sendMessage:blocked:cliNotInstalled", {
+          provider: store.selectedAiProvider,
+          cliStatus,
+        });
+        toast.error(t("aiAssistant.error.cliNotFound", { cli: store.selectedAiProvider }));
         return;
       }
 
@@ -158,6 +252,7 @@ export function useAiAssistant() {
       store.appendAiMessage(userMsg);
 
       const requestId = crypto.randomUUID();
+      trace("sendMessage:requestCreated", { requestId });
       store.setIsAiStreaming(true);
       store.setActiveRequestId(requestId);
       store.appendAiMessage({
@@ -173,6 +268,12 @@ export function useAiAssistant() {
         .getState()
         .aiMessages.filter((m) => !m.isStreaming)
         .map((m) => ({ role: m.role, content: m.content }));
+      trace("sendMessage:invoke:chat_with_ai", {
+        requestId,
+        messagesCount: messages.length,
+        sessionPathCount: sessionPaths.length,
+        provider: store.selectedAiProvider,
+      });
 
       try {
         await invoke("chat_with_ai", {
@@ -181,10 +282,14 @@ export function useAiAssistant() {
           provider: store.selectedAiProvider,
           requestId,
         });
+        trace("sendMessage:invoke:resolved", { requestId });
       } catch (error) {
+        trace("sendMessage:invoke:rejected", { requestId, error: String(error) });
         store.finalizeAiStream(requestId);
         store.setIsAiStreaming(false);
-        toast.error(t("aiAssistant.error.unknown", { message: String(error) }));
+        const errorMsg = String(error);
+        console.error("Chat error:", errorMsg);
+        toast.error(t("aiAssistant.error.unknown", { message: errorMsg }));
       }
     },
     [getSessionPaths, store, t]
@@ -240,6 +345,9 @@ function getErrorMessage(
 ): string {
   switch (code) {
     case "CLI_NOT_FOUND":
+      if (error.includes("ACP adapter unavailable")) {
+        return error;
+      }
       return t("aiAssistant.error.cliNotFound", { cli });
     case "CLI_AUTH_ERROR":
       return t("aiAssistant.error.authRequired", { cli });

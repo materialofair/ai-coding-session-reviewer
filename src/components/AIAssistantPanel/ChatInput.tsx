@@ -15,7 +15,17 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const { isAiStreaming } = useAppStore((s) => ({ isAiStreaming: s.isAiStreaming }));
 
   const handleSend = useCallback(() => {
-    if (!value.trim() || isAiStreaming) return;
+    console.debug("[AI_TRACE] [ChatInput] handleSend", {
+      rawLen: value.length,
+      trimmedLen: value.trim().length,
+      isAiStreaming,
+    });
+    if (!value.trim() || isAiStreaming) {
+      console.debug("[AI_TRACE] [ChatInput] blocked", {
+        reason: !value.trim() ? "empty" : "streaming",
+      });
+      return;
+    }
     onSend(value);
     setValue("");
     if (textareaRef.current) {

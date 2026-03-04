@@ -75,5 +75,14 @@
   "aiAssistant.status.streaming": "接收响应中",
   "aiAssistant.dataSource.label": "数据来源",
   "aiAssistant.dataSource.auto": "自动(当前选择)",
-  "aiAssistant.error.emptyContext": "所选会话中没有可读取的内容，请尝试选择其他数据来源。"
+  "aiAssistant.error.emptyContext": "所选会话中没有可读取的内容，请尝试选择其他数据来源。",
+  "aiAssistant.session.saved": "对话会话已保存",
+  "aiAssistant.session.loaded": "已加载 {{count}} 个对话会话",
+  "aiAssistant.session.deleted": "对话会话已删除",
+  "aiAssistant.session.saveError": "保存对话会话失败",
+  "aiAssistant.session.loadError": "加载对话会话失败",
+  "aiAssistant.session.deleteError": "删除对话会话失败",
+  "aiAssistant.session.autoSave": "自动保存中...",
+  "aiAssistant.session.history": "对话历史",
+  "aiAssistant.session.noHistory": "暂无对话历史"
 }

@@ -9,6 +9,26 @@ import { invoke } from "@tauri-apps/api/core";
 import type { StateCreator } from "zustand";
 import type { FullAppStore } from "./types";
 
+function trace(message: string, detail?: unknown) {
+  if (detail === undefined) {
+    console.debug(`[AI_TRACE] [store] ${message}`);
+    return;
+  }
+  console.debug(`[AI_TRACE] [store] ${message}`, detail);
+}
+
+// Debounce helper for auto-save
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -39,6 +59,8 @@ export interface AiChatSession {
   createdAt: string;
   updatedAt: string;
   messages: AiChatMessage[];
+  contextSessionId?: string;
+  contextProjectPath?: string;
 }
 
 export interface CliStatus {
@@ -52,6 +74,40 @@ export interface CliDetectResult {
   installed: boolean;
   path?: string;
   version?: string;
+}
+
+interface AcpSessionListItem {
+  id: string;
+}
+
+const UUID_PATTERN =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
+function normalizeRecoveredSession(
+  session: AiChatSession
+): { session: AiChatSession; wasNormalized: boolean } {
+  let wasNormalized = false;
+  const messages = session.messages.map((message) => {
+    if (!message.isStreaming) return message;
+    wasNormalized = true;
+    return { ...message, isStreaming: false };
+  });
+
+  if (!wasNormalized) {
+    return { session, wasNormalized: false };
+  }
+
+  return {
+    session: {
+      ...session,
+      messages,
+    },
+    wasNormalized: true,
+  };
 }
 
 // ============================================================================
@@ -100,6 +156,9 @@ export interface AiAssistantSliceActions {
   setIsAiAnalyzing: (v: boolean) => void;
   setIsAiStreaming: (v: boolean) => void;
   setActiveRequestId: (id: string | null) => void;
+  loadAcpSessions: () => Promise<void>;
+  saveCurrentAcpSession: () => Promise<void>;
+  autoSaveAcpSession: (sessionId: string) => void;
 }
 
 export type AiAssistantSlice = AiAssistantSliceState & AiAssistantSliceActions;
@@ -214,7 +273,7 @@ export const createAiAssistantSlice: StateCreator<
 
   setAiAnalysisType: (type) => set({ aiAnalysisType: type }),
 
-  createAiChatSession: (title) =>
+  createAiChatSession: (title) => {
     set((state) => {
       const nextIndex = state.aiChatSessions.length + 1;
       const now = new Date().toISOString();
@@ -233,11 +292,23 @@ export const createAiAssistantSlice: StateCreator<
         isAiStreaming: false,
         activeRequestId: null,
       };
-    }),
+    });
+
+    // Save immediately after creation
+    get().saveCurrentAcpSession().catch((error: unknown) => {
+      console.error("Failed to save new session:", error);
+    });
+  },
 
   switchAiChatSession: (sessionId) =>
     set((state) => {
       const targetSession = state.aiChatSessions.find((s) => s.id === sessionId);
+      trace("switchAiChatSession", {
+        requestedSessionId: sessionId,
+        found: Boolean(targetSession),
+        isAiStreaming: state.isAiStreaming,
+        currentActiveSessionId: state.activeAiChatSessionId,
+      });
       if (!targetSession || state.isAiStreaming) return state;
       return {
         activeAiChatSessionId: sessionId,
@@ -245,7 +316,7 @@ export const createAiAssistantSlice: StateCreator<
       };
     }),
 
-  deleteAiChatSession: (sessionId) =>
+  deleteAiChatSession: (sessionId) => {
     set((state) => {
       if (state.aiChatSessions.length <= 1) {
         const now = new Date().toISOString();
@@ -284,9 +355,28 @@ export const createAiAssistantSlice: StateCreator<
         activeAiChatSessionId: nextActive.id,
         aiMessages: nextActive.messages,
       };
-    }),
+    });
 
-  appendAiMessage: (msg) =>
+    // Delete from disk (persisted sessions use UUID ids only)
+    if (!isUuid(sessionId)) {
+      trace("deleteAiChatSession:skipDiskDelete", { sessionId, reason: "non_uuid_id" });
+      return;
+    }
+
+    invoke("delete_acp_session", { sessionId }).catch((error) => {
+      console.error("Failed to delete ACP session:", error);
+    });
+  },
+
+  appendAiMessage: (msg) => {
+    const activeSessionId = get().activeAiChatSessionId;
+    trace("appendAiMessage", {
+      activeSessionId,
+      id: msg.id,
+      role: msg.role,
+      isStreaming: Boolean(msg.isStreaming),
+      contentLen: msg.content.length,
+    });
     set((state) => {
       const MAX_MESSAGES = 20; // 10 turns
       const now = new Date().toISOString();
@@ -297,14 +387,26 @@ export const createAiAssistantSlice: StateCreator<
       });
       const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
       return { aiChatSessions: sessions, aiMessages: active?.messages ?? [] };
-    }),
+    });
 
-  appendAiStreamDelta: (id, delta) =>
+    // Auto-save after message append (debounced; no promise is returned).
+    try {
+      get().autoSaveAcpSession(activeSessionId);
+    } catch (error) {
+      console.error("Failed to auto-save after message append:", error);
+    }
+  },
+
+  appendAiStreamDelta: (id, delta) => {
+    let targetSessionId: string | null = null;
     set((state) => {
+      let matched = 0;
       const now = new Date().toISOString();
       const sessions = state.aiChatSessions.map((session) => {
         const hasTarget = session.messages.some((msg) => msg.id === id);
         if (!hasTarget) return session;
+        targetSessionId = session.id;
+        matched += 1;
         return {
           ...session,
           updatedAt: now,
@@ -314,15 +416,34 @@ export const createAiAssistantSlice: StateCreator<
         };
       });
       const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
+      trace("appendAiStreamDelta", {
+        requestId: id,
+        deltaLen: delta.length,
+        matchedSessions: matched,
+        activeSessionId: state.activeAiChatSessionId,
+      });
       return { aiChatSessions: sessions, aiMessages: active?.messages ?? state.aiMessages };
-    }),
+    });
 
-  finalizeAiStream: (id) =>
+    if (targetSessionId != null) {
+      try {
+        get().autoSaveAcpSession(targetSessionId);
+      } catch (error) {
+        console.error("Failed to auto-save after stream delta:", error);
+      }
+    }
+  },
+
+  finalizeAiStream: (id) => {
+    let targetSessionId: string | null = null;
     set((state) => {
+      let matched = 0;
       const now = new Date().toISOString();
       const sessions = state.aiChatSessions.map((session) => {
         const hasTarget = session.messages.some((msg) => msg.id === id);
         if (!hasTarget) return session;
+        targetSessionId = session.id;
+        matched += 1;
         return {
           ...session,
           updatedAt: now,
@@ -332,13 +453,28 @@ export const createAiAssistantSlice: StateCreator<
         };
       });
       const active = sessions.find((s) => s.id === state.activeAiChatSessionId);
+      trace("finalizeAiStream", {
+        requestId: id,
+        matchedSessions: matched,
+        activeSessionId: state.activeAiChatSessionId,
+      });
       return {
         aiChatSessions: sessions,
         aiMessages: active?.messages ?? state.aiMessages,
         isAiStreaming: false,
         activeRequestId: null,
       };
-    }),
+    });
+
+    if (targetSessionId != null) {
+      const session = get().aiChatSessions.find((item) => item.id === targetSessionId);
+      if (session != null) {
+        invoke("save_acp_session", { session }).catch((error) => {
+          console.error("Failed to save finalized ACP session:", error);
+        });
+      }
+    }
+  },
 
   clearAiMessages: () =>
     set((state) => {
@@ -353,7 +489,135 @@ export const createAiAssistantSlice: StateCreator<
 
   setIsAiAnalyzing: (v) => set({ isAiAnalyzing: v }),
 
-  setIsAiStreaming: (v) => set({ isAiStreaming: v }),
+  setIsAiStreaming: (v) => {
+    trace("setIsAiStreaming", { value: v });
+    set({ isAiStreaming: v });
+  },
 
-  setActiveRequestId: (id) => set({ activeRequestId: id }),
+  setActiveRequestId: (id) => {
+    trace("setActiveRequestId", { id });
+    set({ activeRequestId: id });
+  },
+
+  loadAcpSessions: async () => {
+    try {
+      trace("loadAcpSessions:start", {
+        activeSessionId: get().activeAiChatSessionId,
+        isAiStreaming: get().isAiStreaming,
+      });
+      const sessionList = await invoke<AcpSessionListItem[]>("list_acp_sessions");
+      trace("loadAcpSessions:list", { count: sessionList.length });
+      if (sessionList.length === 0) {
+        return;
+      }
+
+      const loadedSessions: AiChatSession[] = [];
+      const normalizedSessionsToPersist: AiChatSession[] = [];
+      for (const { id: sessionId } of sessionList) {
+        try {
+          const loaded = await invoke<AiChatSession>("load_acp_session", { sessionId });
+          const { session, wasNormalized } = normalizeRecoveredSession(loaded);
+          loadedSessions.push(session);
+          if (wasNormalized) {
+            normalizedSessionsToPersist.push(session);
+          }
+        } catch (error) {
+          console.error(`Failed to load ACP session ${sessionId}:`, error);
+        }
+      }
+
+      if (loadedSessions.length > 0) {
+        loadedSessions.sort((a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        const mostRecent = loadedSessions[0];
+        if (mostRecent == null) {
+          return;
+        }
+        set((state) => {
+          const activeInMemory = state.aiChatSessions.find(
+            (s) => s.id === state.activeAiChatSessionId
+          );
+          const shouldPreserveInMemory =
+            Boolean(activeInMemory) &&
+            (state.isAiStreaming || (activeInMemory?.messages.length ?? 0) > 0);
+
+          if (shouldPreserveInMemory && activeInMemory) {
+            trace("loadAcpSessions:preserveInMemoryActiveSession", {
+              loadedCount: loadedSessions.length,
+              activeSessionId: state.activeAiChatSessionId,
+              inMemoryMessageCount: activeInMemory.messages.length,
+              isAiStreaming: state.isAiStreaming,
+            });
+            const merged = [...loadedSessions];
+            const existingIndex = merged.findIndex((s) => s.id === activeInMemory.id);
+            if (existingIndex >= 0) {
+              merged[existingIndex] = activeInMemory;
+            } else {
+              merged.unshift(activeInMemory);
+            }
+            return {
+              aiChatSessions: merged,
+              activeAiChatSessionId: activeInMemory.id,
+              aiMessages: activeInMemory.messages,
+            };
+          }
+
+          trace("loadAcpSessions:apply", {
+            loadedCount: loadedSessions.length,
+            mostRecentId: mostRecent.id,
+            previousActiveSessionId: state.activeAiChatSessionId,
+          });
+          return {
+            aiChatSessions: loadedSessions,
+            activeAiChatSessionId: mostRecent.id,
+            aiMessages: mostRecent.messages,
+            isAiStreaming: false,
+            isAiAnalyzing: false,
+            activeRequestId: null,
+          };
+        });
+
+        if (normalizedSessionsToPersist.length > 0) {
+          await Promise.allSettled(
+            normalizedSessionsToPersist.map((session) =>
+              invoke("save_acp_session", { session })
+            )
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load ACP sessions:", error);
+    }
+  },
+
+  saveCurrentAcpSession: async () => {
+    const state = get();
+    const currentSession = state.aiChatSessions.find(
+      (s) => s.id === state.activeAiChatSessionId
+    );
+    if (currentSession == null) {
+      return;
+    }
+
+    try {
+      await invoke("save_acp_session", { session: currentSession });
+    } catch (error) {
+      console.error("Failed to save ACP session:", error);
+    }
+  },
+
+  autoSaveAcpSession: debounce(async (sessionId: string) => {
+    const state = get();
+    const session = state.aiChatSessions.find((s) => s.id === sessionId);
+    if (session == null) {
+      return;
+    }
+
+    try {
+      await invoke("save_acp_session", { session });
+    } catch (error) {
+      console.error("Failed to auto-save ACP session:", error);
+    }
+  }, 500),
 });

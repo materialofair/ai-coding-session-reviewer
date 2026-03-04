@@ -1,3 +1,4 @@
+pub mod acp_sessions;
 pub mod ai_assistant;
 pub mod claude_settings;
 pub mod feedback;
