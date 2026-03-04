@@ -25,7 +25,7 @@
 
 一图了解核心流程：项目级复盘、多会话导航、AI 助手分析在同一界面完成。
 
-![AI Coding Session Reviewer Overview](assets/screenshots/app-overview-2026-03-03.png)
+![AI Coding Session Reviewer Overview](assets/screenshots/app-overview-2026-03-04.png)
 
 ## 目录
 

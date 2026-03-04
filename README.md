@@ -24,7 +24,7 @@ Desktop app that reads conversation history from Claude Code, Codex CLI, and Ope
 
 Quick view of the core workflow: project-level review, multi-session navigation, and AI assistant analysis in one screen.
 
-![AI Coding Session Reviewer Overview](assets/screenshots/app-overview-2026-03-03.png)
+![AI Coding Session Reviewer Overview](assets/screenshots/app-overview-2026-03-04.png)
 
 ## Table of Contents
 
