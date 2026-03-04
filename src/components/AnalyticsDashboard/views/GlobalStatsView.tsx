@@ -104,7 +104,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({
       </p>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard
           icon={Activity}
           label={t("analytics.totalTokens")}
@@ -128,12 +128,6 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({
           label={t("analytics.sessionTime")}
           value={formatDuration(totalSessionTime)}
           colorVariant="green"
-        />
-        <MetricCard
-          icon={Wrench}
-          label={t("analytics.toolsUsed")}
-          value={globalSummary.most_used_tools.length}
-          colorVariant="amber"
         />
       </div>
 

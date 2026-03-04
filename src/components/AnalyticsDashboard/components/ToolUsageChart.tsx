@@ -29,7 +29,6 @@ export const ToolUsageChart: React.FC<ToolUsageChartProps> = ({ tools }) => {
   const { t } = useTranslation();
   const topTools = tools.slice(0, 6);
   const maxUsage = Math.max(...topTools.map((t) => t.usage_count), 1);
-  const totalUsage = topTools.reduce((sum, t) => sum + t.usage_count, 0);
 
   if (topTools.length === 0) {
     return (
@@ -44,7 +43,6 @@ export const ToolUsageChart: React.FC<ToolUsageChartProps> = ({ tools }) => {
     <div className="space-y-2">
       {topTools.map((tool, index) => {
         const color = TOOL_COLORS[index % TOOL_COLORS.length]!;
-        const percentage = totalUsage === 0 ? 0 : (tool.usage_count / totalUsage) * 100;
         const barWidth = (tool.usage_count / maxUsage) * 100;
 
         return (
@@ -66,15 +64,9 @@ export const ToolUsageChart: React.FC<ToolUsageChartProps> = ({ tools }) => {
 
             {/* Tool info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline justify-between mb-1">
+              <div className="mb-1">
                 <span className="text-[11px] font-medium text-foreground/90 truncate pr-2">
                   {getToolDisplayName(tool.tool_name, t)}
-                </span>
-                <span
-                  className="font-mono text-[11px] font-semibold tabular-nums shrink-0"
-                  style={{ color }}
-                >
-                  {tool.usage_count.toLocaleString()}
                 </span>
               </div>
 
@@ -90,26 +82,9 @@ export const ToolUsageChart: React.FC<ToolUsageChartProps> = ({ tools }) => {
                 />
               </div>
             </div>
-
-            {/* Percentage */}
-            <div className="w-12 text-right shrink-0">
-              <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                {percentage.toFixed(1)}%
-              </span>
-            </div>
           </div>
         );
       })}
-
-      {/* Total footer */}
-      <div className="flex items-center justify-between pt-3 mt-2 border-t border-border/30">
-        <span className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
-          Total Usage
-        </span>
-        <span className="font-mono text-sm font-semibold text-foreground tabular-nums">
-          {totalUsage.toLocaleString()}
-        </span>
-      </div>
     </div>
   );
 };

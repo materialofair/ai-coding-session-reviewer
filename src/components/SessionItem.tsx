@@ -1,7 +1,6 @@
 // src/components/SessionItem.tsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Wrench,
   AlertTriangle,
   Pencil,
   X,
@@ -440,15 +439,6 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             >
               {formatTimeAgo(session.last_modified)}
             </span>
-            <span
-              className={cn(
-                "shrink-0 text-[10px] leading-4 font-mono tabular-nums",
-                isSelected ? "text-accent/75" : "text-muted-foreground/80"
-              )}
-              title={t("session.item.messageCount")}
-            >
-              {session.message_count}
-            </span>
             {isArchivedCodexSession && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -470,16 +460,6 @@ export const SessionItem: React.FC<SessionItemProps> = ({
                   </p>
                 </TooltipContent>
               </Tooltip>
-            )}
-            {session.has_tool_use && (
-              <span title={t("session.item.containsToolUse")}>
-                <Wrench
-                  className={cn(
-                    "w-3 h-3",
-                    isSelected ? "text-accent" : "text-accent/55"
-                  )}
-                />
-              </span>
             )}
             {session.has_errors && (
               <span title={t("session.item.containsErrors")}><AlertTriangle className="w-3 h-3 text-destructive" /></span>

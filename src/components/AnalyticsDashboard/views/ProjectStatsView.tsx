@@ -6,7 +6,7 @@
 
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageCircle, Activity, Clock, Wrench, Layers, Cpu, TrendingUp, Database } from "lucide-react";
+import { MessageCircle, Activity, Clock, Layers, Cpu, TrendingUp, Database } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading";
 import type { ProjectStatsSummary, ProviderId } from "../../../types";
 import { formatDuration } from "../../../utils/time";
@@ -62,7 +62,7 @@ export const ProjectStatsView: React.FC<ProjectStatsViewProps> = ({
   return (
     <div className="space-y-6 animate-stagger">
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard
           icon={MessageCircle}
           label={t("analytics.totalMessages")}
@@ -88,12 +88,6 @@ export const ProjectStatsView: React.FC<ProjectStatsViewProps> = ({
             projectSummary.avg_session_duration
           )}`}
           colorVariant="green"
-        />
-        <MetricCard
-          icon={Wrench}
-          label={t("analytics.toolsUsed")}
-          value={projectSummary.most_used_tools.length}
-          colorVariant="amber"
         />
       </div>
 

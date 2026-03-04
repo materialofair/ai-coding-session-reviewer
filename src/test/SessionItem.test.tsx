@@ -134,7 +134,7 @@ describe("SessionItem", () => {
       expect(screen.getByText("No summary")).toBeInTheDocument();
     });
 
-    it("should display message count", () => {
+    it("should not display message count in title meta", () => {
       const session = createMockSession({ message_count: 42 });
 
       render(
@@ -146,7 +146,7 @@ describe("SessionItem", () => {
         />
       );
 
-      expect(screen.getByText("42")).toBeInTheDocument();
+      expect(screen.queryByTitle("session.item.messageCount")).not.toBeInTheDocument();
     });
 
     it("should display formatted time", () => {
@@ -545,7 +545,7 @@ describe("SessionItem", () => {
   });
 
   describe("Tool use and error indicators", () => {
-    it("should show tool use indicator when has_tool_use is true", () => {
+    it("should not show tool use indicator even when has_tool_use is true", () => {
       const session = createMockSession({ has_tool_use: true });
 
       render(
@@ -557,10 +557,7 @@ describe("SessionItem", () => {
         />
       );
 
-      // Wrench icon should be present (lucide renders as svg)
-      const container = screen.getByText(session.message_count.toString())
-        .closest("div")?.parentElement;
-      expect(container?.innerHTML).toContain("svg");
+      expect(screen.queryByTitle("session.item.containsToolUse")).not.toBeInTheDocument();
     });
 
     it("should show error indicator when has_errors is true", () => {
@@ -575,10 +572,9 @@ describe("SessionItem", () => {
         />
       );
 
-      // AlertTriangle icon should be present
-      const container = screen.getByText(session.message_count.toString())
-        .closest("div")?.parentElement;
-      expect(container?.innerHTML).toContain("svg");
+      const indicator = screen.getByTitle("session.item.containsErrors");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.querySelector("svg")).not.toBeNull();
     });
   });
 });

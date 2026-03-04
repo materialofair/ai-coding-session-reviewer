@@ -788,6 +788,7 @@ fn build_analysis_prompt(analysis_type: &str, mixed: &MixedContext) -> String {
         "summary" => format!("{common_header}{}",
             "Please summarize the following AI coding assistant conversation history. \
             Include: main tasks completed, tools used, problems encountered, and final outcomes. \
+            Do not present tool-call counts or numeric call statistics. \
             Format as Markdown."
         ),
         "repeated" => format!("{common_header}{}",
@@ -808,6 +809,7 @@ fn build_analysis_prompt(analysis_type: &str, mixed: &MixedContext) -> String {
             3) Optimized prompt rewrites (give concrete rewritten prompts)\n\
             4) Recommended skill workflow per task type (planning, implementation, debugging, verification)\n\
             5) Fast-execution playbook (how to reduce timeout/latency while keeping quality)\n\
+            Do not present tool-call counts or numeric call statistics.\n\
             Be concrete, actionable, and reference evidence from the provided context."
         ),
         _ => format!("{common_header}Analyze this conversation and provide concise actionable insights in Markdown."),
@@ -831,6 +833,7 @@ fn build_chat_prompt(messages: &[ChatMessagePayload], mixed: &MixedContext) -> S
         - Answer the last user message directly.\n\
         - Always respond in Simplified Chinese (zh-CN).\n\
         - Be concrete and actionable, with prompt rewrite examples and skill workflow suggestions when relevant.\n\
+        - Do not present tool-call counts or numeric call statistics.\n\
         - If the user only greets, reply briefly and ask one focused follow-up about the session-analysis goal.\n\
         - Do not introduce this project as \"Claude Code History Viewer\".\n\
         - Do not output generic capability lists unless explicitly requested.\n\n\

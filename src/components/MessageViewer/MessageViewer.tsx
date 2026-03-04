@@ -555,11 +555,6 @@ export const MessageViewer: React.FC<MessageViewerProps> = ({
                 <span className="bg-muted/50 px-2 py-0.5 rounded-full border border-border/50">
                   {messages.length} {t("messageViewer.messagesShort")}
                 </span>
-                {selectedSession?.has_tool_use && (
-                  <span className="bg-muted/50 px-2 py-0.5 rounded-full border border-border/50">
-                    {t("messageViewer.toolsUsed")}
-                  </span>
-                )}
                 {selectedSession?.has_errors && (
                   <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
                     {t("messageViewer.hasErrors")}
