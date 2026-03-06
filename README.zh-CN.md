@@ -66,7 +66,7 @@
 
 | 平台 | 下载 |
 |----------|----------|
-| macOS (通用) | [`.dmg`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest/download/AI.Coding.Session.Reviewer_1.2.1_universal.dmg) |
+| macOS (Apple Silicon) | [`.dmg`](https://github.com/materialofair/ai-coding-session-reviewer/releases/latest/download/AI%20Coding%20Session%20Reviewer_1.2.1_aarch64.dmg) |
 
 ### Homebrew (macOS)
 
