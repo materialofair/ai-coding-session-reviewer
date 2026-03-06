@@ -679,20 +679,17 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
         id={asideId}
         aria-label={t("project.explorer")}
         tabIndex={-1}
-        className={cn("flex-shrink-0 bg-sidebar border-r-0 flex h-full", isResizing && "select-none")}
+        className={cn("flex h-full flex-shrink-0", isResizing && "select-none")}
         style={sidebarStyle}
       >
-        <div className="flex-1 flex flex-col items-center py-3 gap-2 relative">
-          {/* Right accent border */}
-          <div className="absolute right-0 inset-y-0 w-[2px] bg-gradient-to-b from-accent/40 via-accent/60 to-accent/40" />
+        <div className="glass-panel relative flex flex-1 flex-col items-center gap-3 rounded-[26px] py-4">
 
           {/* Expand Button */}
           {onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center",
-                "bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                "flex h-9 w-9 items-center justify-center rounded-2xl border border-border/60 bg-background/70 text-accent transition-colors hover:bg-accent/10"
               )}
               title={t("project.expandSidebar", "Expand sidebar")}
               aria-label={t("project.expandSidebar", "Expand sidebar")}
@@ -701,14 +698,16 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
             </button>
           )}
 
-          <div className="w-6 h-px bg-accent/20" />
+          <div className="h-px w-7 bg-border/70" />
 
           {/* Global Stats Icon */}
           <button
             onClick={handleGlobalStatsClick}
             className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-              isViewingGlobalStats ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-accent/10 hover:text-accent"
+              "flex h-9 w-9 items-center justify-center rounded-2xl border border-transparent transition-colors",
+              isViewingGlobalStats
+                ? "border-accent/20 bg-accent/12 text-accent"
+                : "text-muted-foreground hover:border-border/60 hover:bg-background/70 hover:text-accent"
             )}
             aria-label={t("project.globalStats")}
             title={t("project.globalStats")}
@@ -716,11 +715,11 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
             <Database className="w-4 h-4" />
           </button>
 
-          <div className="w-6 h-px bg-accent/20" />
+          <div className="h-px w-7 bg-border/70" />
 
           {/* Projects Count */}
-          <div className="flex flex-col items-center gap-1">
-            <Folder className="w-4 h-4 text-muted-foreground" />
+          <div className="flex flex-col items-center gap-1 rounded-2xl border border-border/60 bg-background/65 px-2 py-2">
+            <Folder className="h-4 w-4 text-muted-foreground" />
             <span className="text-2xs font-mono text-muted-foreground">{filteredProjects.length}</span>
           </div>
         </div>
@@ -733,16 +732,14 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
       id={asideId}
       aria-label={t("project.explorer")}
       tabIndex={-1}
-      className={cn("flex-shrink-0 bg-sidebar border-r-0 flex h-full", !width && "w-64", isResizing && "select-none")}
+      className={cn("flex h-full flex-shrink-0", !width && "w-72", isResizing && "select-none")}
       style={sidebarStyle}
     >
       {/* Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
-        {/* Right accent border */}
-        <div className="absolute right-0 inset-y-0 w-[2px] bg-gradient-to-b from-accent/40 via-accent/60 to-accent/40" />
+      <div className="glass-panel relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[28px]">
 
         {/* Sidebar Header */}
-        <div className="px-3 py-3 bg-gradient-to-b from-accent/8 to-transparent border-b border-accent/10 space-y-2.5">
+        <div className="space-y-3 border-b border-border/50 px-4 py-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               {/* Collapse Button */}
@@ -750,8 +747,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                 <button
                   onClick={onToggleCollapse}
                   className={cn(
-                    "p-1.5 rounded-md transition-colors flex-shrink-0",
-                    "text-muted-foreground hover:text-accent hover:bg-accent/10"
+                    "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:text-accent hover:bg-accent/10"
                   )}
                   title={t("project.collapseSidebar", "Collapse sidebar")}
                   aria-label={t("project.collapseSidebar", "Collapse sidebar")}
@@ -759,22 +755,26 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                   <PanelLeftClose className="w-3.5 h-3.5" />
                 </button>
               )}
-              <div className="w-2 h-2 rounded-full bg-accent/90 flex-shrink-0" />
-              <span className="text-[13px] font-semibold text-accent truncate">
-                {t("project.explorer")}
-              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  {t("project.workspaceLabel", "Workspace")}
+                </p>
+                <span className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+                  {t("project.explorer")}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Grouping Mode Tabs */}
               {onGroupingModeChange && (
-                <div className="flex items-center bg-muted/30 rounded-lg p-0.5 gap-0.5 border border-border/50">
+                <div className="flex items-center gap-0.5 rounded-2xl border border-border/55 bg-background/65 p-1">
                   {/* Flat (No Grouping) */}
                   <button
                     onClick={() => onGroupingModeChange("none")}
                     className={cn(
-                      "p-1.5 rounded-md transition-all duration-200",
+                      "rounded-xl p-1.5 transition-all duration-200",
                       groupingMode === "none"
-                        ? "bg-accent/18 text-accent shadow-sm"
+                        ? "bg-accent/14 text-accent shadow-sm"
                         : "text-muted-foreground hover:text-accent hover:bg-accent/10"
                     )}
                     title={t("project.groupingNone", "Flat list")}
@@ -786,9 +786,9 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                   <button
                     onClick={() => onGroupingModeChange("directory")}
                     className={cn(
-                      "p-1.5 rounded-md transition-all duration-200",
+                      "rounded-xl p-1.5 transition-all duration-200",
                       groupingMode === "directory"
-                        ? "bg-blue-500/18 text-blue-500 shadow-sm"
+                        ? "bg-blue-500/16 text-blue-500 shadow-sm"
                         : "text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10"
                     )}
                     title={t("project.groupingDirectory", "Group by directory")}
@@ -800,9 +800,9 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                   <button
                     onClick={() => onGroupingModeChange("worktree")}
                     className={cn(
-                      "p-1.5 rounded-md transition-all duration-200",
+                      "rounded-xl p-1.5 transition-all duration-200",
                       groupingMode === "worktree"
-                        ? "bg-emerald-500/18 text-emerald-500 shadow-sm"
+                        ? "bg-emerald-500/16 text-emerald-500 shadow-sm"
                         : "text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10"
                     )}
                     title={t("project.groupingWorktree", "Group by worktree")}
@@ -812,15 +812,15 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                   </button>
                 </div>
               )}
-              <span className="text-sm font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-full border border-accent/20">
+              <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs font-mono text-foreground">
                 {filteredProjects.length}
               </span>
             </div>
           </div>
-          <div className="rounded-xl border border-border/50 bg-card/55 px-2 py-1.5">
+          <div className="rounded-[22px] border border-border/55 bg-background/65 px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/35 border border-border/40">
-                <span className="text-xs text-muted-foreground">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card/75 px-3 py-1.5">
+                <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                   {t("aiAssistant.provider.label", "CLI")}
                 </span>
                 <span className="text-xs font-medium text-foreground">{activeProviderLabel}</span>
@@ -829,7 +829,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border/40 bg-muted/35 text-muted-foreground hover:text-foreground hover:bg-accent/8 transition-colors"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border/50 bg-card/75 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/8"
                     aria-label={t("common.options", { defaultValue: "Options" })}
                     title={t("common.options", { defaultValue: "Options" })}
                   >
@@ -866,7 +866,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
 
         {/* Projects List */}
         <OverlayScrollbarsComponent
-          className="relative flex-1 py-2"
+          className="relative flex-1 py-3"
           options={{
             scrollbars: {
               theme: "os-theme-custom",
@@ -879,8 +879,8 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
           }}
         >
           {filteredProjects.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <div className="px-5 py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] border border-border/55 bg-background/70">
                 <Folder className="w-8 h-8 text-muted-foreground/40" />
               </div>
               <p className="text-sm text-muted-foreground">{t("project.notFound")}</p>
@@ -900,7 +900,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                   announceTree(describeTreeItem(treeItem));
                 }
               }}
-              className="space-y-0.5 animate-stagger"
+              className="space-y-1 animate-stagger px-3"
             >
               {/* Global Stats Button */}
               <button
@@ -911,22 +911,21 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
                 aria-selected={isViewingGlobalStats}
                 tabIndex={-1}
                 className={cn(
-                  "sidebar-item w-full flex items-center gap-3 mx-2 group",
-                  "text-left transition-all duration-300",
-                  isViewingGlobalStats && "active"
+                  "group flex w-full items-center gap-3 rounded-[22px] border border-transparent bg-background/55 px-3 py-3 text-left transition-all duration-300",
+                  "hover:border-border/60 hover:bg-background/82 hover:shadow-sm",
+                  isViewingGlobalStats && "border-accent/20 bg-accent/10 shadow-sm"
                 )}
-                style={{ width: "calc(100% - 16px)" }}
               >
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                    "bg-accent/10 text-accent",
-                    "group-hover:bg-accent/20 group-hover:shadow-sm group-hover:shadow-accent/20",
-                    isViewingGlobalStats && "bg-accent/20 shadow-glow"
+                    "flex h-10 w-10 items-center justify-center rounded-2xl border border-border/55 transition-all duration-300",
+                    "bg-card/80 text-accent",
+                    "group-hover:bg-accent/12 group-hover:shadow-sm",
+                    isViewingGlobalStats && "border-accent/25 bg-accent/14"
                   )}
                 >
                   <span title={t("project.globalStats")}>
-                    <Database className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <Database className="h-4 w-4 transition-transform group-hover:scale-110" />
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -940,7 +939,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
               </button>
 
               {/* Divider */}
-              <div className="my-2 mx-4 h-px bg-sidebar-border" />
+              <div className="my-2 h-px bg-border/60" />
 
               {/* Grouped Project List */}
               <GroupedProjectList
@@ -986,9 +985,9 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({
       {onResizeStart && (
         <div
           className={cn(
-            "w-3 cursor-col-resize flex-shrink-0",
-            "hover:bg-accent/20 active:bg-accent/30 transition-colors",
-            isResizing && "bg-accent/30"
+            "w-3 flex-shrink-0 cursor-col-resize rounded-full transition-colors",
+            "hover:bg-accent/16 active:bg-accent/24",
+            isResizing && "bg-accent/24"
           )}
           onMouseDown={onResizeStart}
         />

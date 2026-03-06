@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🔗 **Deep Linking**: Added ability to navigate from Token Stats view directly to detailed session conversation.
 - ⚡ **Navigation Improvements**: Fixed infinite loading when switching sessions from the Board view by implementing optimistic store updates.
 
+## Version 1.2.1 (2026-03-06)
+
+### Changed
+
+- 🎨 **Modernized Workspace Shell**: Refreshed the app shell, header, project overview, and navigation surfaces with a cleaner glass-panel layout and improved visual hierarchy.
+- 🗂️ **Project Navigation Polish**: Updated project tree rows, session cards, and global overview entry states for a more consistent and legible browsing experience.
+
+### Fixed
+
+- 🤖 **ACP Panel Layout Regression**: Restored flex and overflow constraints so opening the ACP chat panel no longer collapses the main workspace into blank columns.
+- 📐 **Panel Height Containment**: Added proper height containment for the ACP sidebar to keep chat history and input areas scrolling inside the panel.
+
 ## Version 1.5.2 (2026-02-21)
 
 ### Added

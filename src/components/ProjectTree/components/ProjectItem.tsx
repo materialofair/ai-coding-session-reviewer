@@ -67,19 +67,19 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
       onContextMenu={onContextMenu}
       style={{ viewTransitionName }}
       className={cn(
-        "group w-full flex items-center gap-1.5",
-        "text-left transition-all duration-200 rounded-lg cursor-pointer border border-transparent",
+        "group flex w-full items-center gap-2",
+        "cursor-pointer rounded-2xl border border-transparent text-left transition-all duration-200",
         isGrouped ? "px-1.5 py-1" : "px-3 py-1.5",
         "focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none",
         isGrouped
           ? "hover:bg-accent/10"
-          : "hover:bg-accent/8",
-        !isGrouped && isExpanded && !isSelected && "bg-accent/8",
-        !isGrouped && isSelected && "bg-accent/12 border-accent/35 shadow-sm",
-        isGrouped && isSelected && (isWorktree ? "bg-emerald-500/14 border-emerald-500/30" : "bg-accent/12 border-accent/35"),
+          : "hover:border-border/60 hover:bg-background/85 hover:shadow-sm",
+        !isGrouped && isExpanded && !isSelected && "bg-accent/7",
+        !isGrouped && isSelected && "border-accent/25 bg-accent/10 shadow-sm",
+        isGrouped && isSelected && (isWorktree ? "border-emerald-500/25 bg-emerald-500/12" : "border-accent/25 bg-accent/10"),
         isGrouped && isMain && "hover:bg-accent/10",
         isGrouped && isWorktree && "hover:bg-emerald-500/10",
-        isGrouped && isExpanded && (isMain ? "bg-accent/15" : "bg-emerald-500/15")
+        isGrouped && isExpanded && (isMain ? "bg-accent/12" : "bg-emerald-500/12")
       )}
     >
       {/* Leading Icon: default folder/branch, hover to expand/collapse control */}
@@ -93,8 +93,8 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
         }}
         className={cn(
           "relative inline-flex flex-shrink-0 items-center justify-center rounded transition-all duration-200",
-          isGrouped ? "h-3.5 w-3.5" : "h-5 w-5",
-          !isGrouped && (isExpanded ? "bg-accent/20" : "bg-muted/50"),
+          isGrouped ? "h-3.5 w-3.5" : "h-8 w-8 rounded-xl border border-border/50 bg-background/75",
+          !isGrouped && isExpanded && "border-accent/20 bg-accent/10",
           isExpandable && "cursor-pointer hover:bg-accent/12"
         )}
       >
@@ -166,12 +166,9 @@ export const ProjectItem: React.FC<ProjectItemProps> = ({
         <span
           className={cn(
             "px-1 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 leading-none border",
-            providerId === "claude" && "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-            providerId === "codex" && "bg-green-500/15 text-green-600 dark:text-green-400",
-            providerId === "opencode" && "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-            providerId === "claude" && "border-amber-500/20",
-            providerId === "codex" && "border-green-500/20",
-            providerId === "opencode" && "border-blue-500/20"
+            providerId === "claude" && "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+            providerId === "codex" && "border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400",
+            providerId === "opencode" && "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400"
           )}
           title={providerLabel}
         >

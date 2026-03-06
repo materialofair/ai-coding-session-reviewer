@@ -318,15 +318,14 @@ export const SessionItem: React.FC<SessionItemProps> = ({
   return (
     <div
       className={cn(
-        "group w-full flex items-center gap-1.5 py-1 px-2.5 rounded-md",
+        "group flex w-full items-center gap-2 rounded-2xl border border-transparent px-3 py-2",
         "text-left transition-all duration-300",
-        "hover:bg-accent/8",
+        "hover:border-border/60 hover:bg-background/82 hover:shadow-sm",
         deleting && "opacity-60",
         isSelected
-          ? "bg-accent/15 shadow-sm shadow-accent/10 ring-1 ring-accent/20"
+          ? "border-accent/20 bg-accent/10 shadow-sm shadow-accent/8"
           : "bg-transparent"
       )}
-      style={{ width: "calc(100% - 8px)" }}
       onClick={handleClick}
       onMouseEnter={() => {
         // Only trigger hover action if we are NOT in editing mode and a hover handler is provided
@@ -419,9 +418,9 @@ export const SessionItem: React.FC<SessionItemProps> = ({
 
             <span
               className={cn(
-                "text-[12px] leading-4 transition-colors duration-300 flex-1 min-w-0 truncate whitespace-nowrap cursor-pointer",
+                "flex-1 min-w-0 cursor-pointer truncate whitespace-nowrap text-[12px] leading-4 transition-colors duration-300",
                 isSelected
-                  ? "text-accent font-medium"
+                  ? "font-medium text-foreground"
                   : "text-sidebar-foreground/75"
               )}
               onDoubleClick={handleDoubleClick}
@@ -433,7 +432,7 @@ export const SessionItem: React.FC<SessionItemProps> = ({
             <span
               className={cn(
                 "ml-auto shrink-0 text-[10px] leading-4 font-mono tabular-nums",
-                isSelected ? "text-accent/80" : "text-muted-foreground"
+                isSelected ? "text-foreground/65" : "text-muted-foreground"
               )}
               title={t("session.item.lastModified")}
             >
