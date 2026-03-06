@@ -438,7 +438,9 @@ function App() {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex flex-col bg-background">
+      <div className="relative flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(120,162,255,0.14),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(241,245,249,0.92))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(245,158,11,0.12),_transparent_24%),linear-gradient(180deg,_rgba(9,14,24,0.98),_rgba(11,18,32,0.94))]">
+        <div className="pointer-events-none absolute inset-0 gradient-mesh opacity-70" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/50 via-white/10 to-transparent dark:from-white/6 dark:via-transparent dark:to-transparent" />
         <nav aria-label={t("common.a11y.skipNavigation", { defaultValue: "Skip navigation" })}>
           <a
             href="#project-explorer"
@@ -476,7 +478,7 @@ function App() {
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden gap-3 px-3 pb-3">
           {/* Sidebar */}
           <ProjectTree
             projects={projects}
@@ -513,8 +515,9 @@ function App() {
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 flex flex-col min-w-0 bg-background"
+            className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] border border-border/60 bg-background/80 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl"
           >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/45 via-white/10 to-transparent dark:from-white/6 dark:via-transparent dark:to-transparent" />
             {/* Content Header for non-message views */}
             {(computed.isTokenStatsView ||
               computed.isAnalyticsView ||
@@ -522,9 +525,10 @@ function App() {
               computed.isSettingsView ||
               computed.isBoardView ||
               isViewingGlobalStats) && (
-              <div className="px-6 py-4 border-b border-border/60 bg-gradient-to-r from-slate-50/80 via-background to-sky-50/70 dark:from-slate-900/35 dark:via-slate-900/20 dark:to-sky-950/20">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg border border-sky-200/70 bg-sky-100/80 dark:border-sky-500/25 dark:bg-sky-500/15 flex items-center justify-center">
+              <div className="relative border-b border-border/50 px-8 py-6">
+                <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.7),rgba(255,255,255,0.28))] dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.34),rgba(15,23,42,0.1))]" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/60 bg-card/75 shadow-sm">
                     {isViewingGlobalStats ? (
                       <Database className="w-5 h-5 text-accent" />
                     ) : computed.isSettingsView ? (
@@ -539,8 +543,11 @@ function App() {
                       <Coins className="w-5 h-5 text-accent" />
                     )}
                   </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-foreground">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      {selectedProject?.name || t("project.explorer")}
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
                       {isViewingGlobalStats
                         ? t("analytics.globalOverview")
                         : computed.isSettingsView
@@ -553,7 +560,7 @@ function App() {
                         ? t("session.board.title")
                         : t('messages.tokenStats.title')}
                     </h2>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                       {isViewingGlobalStats
                         ? globalOverviewDescription
                         : computed.isSettingsView
@@ -574,9 +581,9 @@ function App() {
             )}
 
             {/* Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="relative z-10 flex-1 overflow-hidden">
               {computed.isSettingsView ? (
-                <div className="h-full flex flex-col p-6">
+                <div className="h-full flex flex-col p-4 md:p-5">
                   <SettingsManager
                     projectPath={selectedProject?.actual_path}
                     className="flex-1 min-h-0"
@@ -612,7 +619,7 @@ function App() {
                   className="h-full"
                   options={{ scrollbars: { theme: "os-theme-custom", autoHide: "leave" } }}
                 >
-                  <div className="p-6">
+                  <div className="p-4 md:p-5">
                     <TokenStatsViewer
                       title={t('messages.tokenStats.title')}
                       sessionStats={sessionTokenStats}
@@ -634,7 +641,7 @@ function App() {
                   </div>
                 </OverlayScrollbarsComponent>
               ) : selectedSession ? (
-                <div className="flex h-full overflow-hidden">
+                <div className="flex h-full overflow-hidden p-3">
                   <div className="flex-1 min-w-0">
                     <MessageViewer
                       messages={messages}
@@ -660,49 +667,57 @@ function App() {
                   />
                 </div>
               ) : selectedProject ? (
-                <div className="h-full overflow-auto p-6">
+                <div className="h-full overflow-auto p-4 md:p-5">
                   <div className="mx-auto w-full max-w-5xl space-y-5">
-                    <div className="rounded-xl border border-border/60 bg-card p-5">
-                      <h2 className="text-xl font-semibold text-foreground">
-                        {selectedProject.name}
-                      </h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {t(
-                          "session.projectOverviewDescription",
-                          { defaultValue: "项目已选中。你可以直接从下方最近会话进入任务复盘，或切换到看板/分析做项目复盘。" }
-                        )}
-                      </p>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("session.projectOverview.totalSessions", { defaultValue: "会话总数" })}
+                    <div className="glass-panel noise-texture overflow-hidden rounded-[28px] p-6 md:p-8">
+                      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-2xl">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                            {t("project.explorer")}
                           </p>
-                          <p className="mt-1 text-2xl font-semibold text-foreground">
-                            {projectSessionsOverview.length}
+                          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                            {selectedProject.name}
+                          </h2>
+                          <p className="mt-3 text-sm leading-6 text-muted-foreground md:text-[15px]">
+                            {t(
+                              "session.projectOverviewDescription",
+                              { defaultValue: "项目已选中。你可以直接从下方最近会话进入任务复盘，或切换到看板/分析做项目复盘。" }
+                            )}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("session.projectOverview.withErrors", { defaultValue: "包含错误" })}
-                          </p>
-                          <p className="mt-1 text-2xl font-semibold text-foreground">
-                            {projectSessionsOverview.filter((s) => s.has_errors).length}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("session.projectOverview.withTools", { defaultValue: "包含工具调用" })}
-                          </p>
-                          <p className="mt-1 text-2xl font-semibold text-foreground">
-                            {projectSessionsOverview.filter((s) => s.has_tool_use).length}
-                          </p>
+
+                        <div className="grid gap-3 sm:min-w-[320px] sm:grid-cols-3 lg:w-[380px]">
+                          <div className="rounded-2xl border border-border/55 bg-background/60 p-4 shadow-sm">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                              {t("session.projectOverview.totalSessions", { defaultValue: "会话总数" })}
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+                              {projectSessionsOverview.length}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/55 bg-background/60 p-4 shadow-sm">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                              {t("session.projectOverview.withErrors", { defaultValue: "包含错误" })}
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+                              {projectSessionsOverview.filter((s) => s.has_errors).length}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/55 bg-background/60 p-4 shadow-sm">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                              {t("session.projectOverview.withTools", { defaultValue: "包含工具调用" })}
+                            </p>
+                            <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+                              {projectSessionsOverview.filter((s) => s.has_tool_use).length}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-8 flex flex-wrap gap-2.5">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                          className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-transform hover:-translate-y-0.5"
                           onClick={() => {
                             const latest = projectSessionsOverview[0];
                             if (latest) {
@@ -715,7 +730,7 @@ function App() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                          className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50"
                           onClick={() => {
                             void analyticsActions.switchToBoard();
                           }}
@@ -724,7 +739,7 @@ function App() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
+                          className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50"
                           onClick={() => {
                             void analyticsActions.switchToAnalytics();
                           }}
@@ -734,49 +749,61 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-border/60 bg-card p-4">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        {t("session.projectOverview.recentSessions", { defaultValue: "最近会话" })}
-                      </h3>
+                    <div className="glass-panel rounded-[24px] p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            {t("session.projectOverview.recentSessions", { defaultValue: "最近会话" })}
+                          </p>
+                          <h3 className="mt-1 text-lg font-semibold text-foreground">
+                            {t("session.projectOverview.recentSessions", { defaultValue: "最近会话" })}
+                          </h3>
+                        </div>
+                        <span className="rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground">
+                          {projectSessionsOverview.length}
+                        </span>
+                      </div>
                       {projectSessionsOverview.length === 0 ? (
-                        <p className="mt-2 text-sm text-muted-foreground">
+                        <p className="mt-4 text-sm text-muted-foreground">
                           {t("session.projectOverview.noSessions", { defaultValue: "当前项目还没有可用会话。" })}
                         </p>
                       ) : (
-                        <div className="mt-3 grid gap-2">
+                        <div className="mt-4 grid gap-3">
                           {projectSessionsOverview.slice(0, 12).map((session) => (
                             <button
                               key={session.session_id}
                               type="button"
-                              className="group w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/40"
+                              className="group flex w-full items-start justify-between gap-3 rounded-2xl border border-border/55 bg-background/65 px-4 py-3 text-left transition hover:border-border hover:bg-background/90 hover:shadow-sm"
                               onClick={() => void handleSessionSelect(session)}
                             >
-                              <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
                                 <p className="line-clamp-1 text-sm font-medium text-foreground">
                                   {session.summary ||
                                     `${t("session.title")} ${session.actual_session_id.slice(0, 8)}`}
                                 </p>
-                                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground transition group-hover:text-foreground" />
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock3 className="h-3.5 w-3.5" />
-                                  {new Date(
-                                    session.last_message_time || session.last_modified
-                                  ).toLocaleString()}
-                                </span>
-                                {session.has_tool_use && (
+                                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                                   <span className="inline-flex items-center gap-1">
-                                    <Wrench className="h-3.5 w-3.5" />
-                                    {t("session.item.containsToolUse")}
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                    {new Date(
+                                      session.last_message_time || session.last_modified
+                                    ).toLocaleString()}
                                   </span>
-                                )}
-                                {session.has_errors && (
-                                  <span className="inline-flex items-center gap-1 text-destructive">
-                                    <Bug className="h-3.5 w-3.5" />
-                                    {t("session.item.containsErrors")}
-                                  </span>
-                                )}
+                                  {session.has_tool_use && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Wrench className="h-3.5 w-3.5" />
+                                      {t("session.item.containsToolUse")}
+                                    </span>
+                                  )}
+                                  {session.has_errors && (
+                                    <span className="inline-flex items-center gap-1 text-destructive">
+                                      <Bug className="h-3.5 w-3.5" />
+                                      {t("session.item.containsErrors")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-card/70 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground">
+                                <ArrowRight className="h-4 w-4" />
                               </div>
                             </button>
                           ))}
@@ -787,15 +814,18 @@ function App() {
                 </div>
               ) : (
                 /* Empty State */
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center max-w-sm mx-auto">
-                    <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
-                      <MessageSquare className="w-10 h-10 text-muted-foreground/50" />
+                <div className="flex h-full items-center justify-center p-6">
+                  <div className="glass-panel noise-texture w-full max-w-xl rounded-[32px] p-8 text-center md:p-10">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-border/60 bg-background/70 shadow-sm">
+                      <MessageSquare className="h-10 w-10 text-muted-foreground/60" />
                     </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                      {t("common.appName")}
+                    </p>
+                    <h3 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
                       {t("session.select")}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
                       {t("session.selectDescription")}
                     </p>
                   </div>
@@ -809,7 +839,7 @@ function App() {
         </div>
 
         {/* Status Bar */}
-        <footer className="h-7 px-4 flex items-center justify-between bg-sidebar border-t border-border/50 text-2xs text-muted-foreground">
+        <footer className="relative z-10 mx-3 mb-3 flex h-10 items-center justify-between rounded-[20px] border border-border/60 bg-background/70 px-4 text-2xs text-muted-foreground backdrop-blur-xl">
           <div className="flex items-center gap-3 font-mono tabular-nums">
             <span>{t("status.versionLabel", "v{{version}}", { version: appVersion })}</span>
             <span className="text-border">•</span>
@@ -829,7 +859,7 @@ function App() {
             isLoadingSessions ||
             isLoadingMessages ||
             computed.isAnyLoading) && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/65 px-2.5 py-1">
                 <LoadingSpinner size="xs" variant="muted" />
                 <span>
                   {computed.isAnyLoading && t("status.loadingStats")}

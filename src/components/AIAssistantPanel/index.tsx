@@ -64,7 +64,7 @@ export function AIAssistantPanel() {
   if (!isAiPanelOpen) {
     return (
       <aside
-        className="flex flex-col border-l border-border/50 bg-card/90 w-11 items-center pt-3 gap-2 flex-shrink-0"
+        className="flex w-11 flex-shrink-0 flex-col items-center gap-2 border-l border-border/50 bg-card/90 pt-3"
         aria-label={t("aiAssistant.panel.title")}
       >
         <Button
@@ -83,7 +83,7 @@ export function AIAssistantPanel() {
 
   return (
     <aside
-      className="flex flex-col border-l border-border/50 bg-card/95 backdrop-blur-sm flex-shrink-0 relative"
+      className="relative flex min-h-0 flex-shrink-0 flex-col overflow-hidden border-l border-border/50 bg-card/95 backdrop-blur-sm"
       style={{ width, userSelect: isResizing ? "none" : undefined }}
       aria-label={t("aiAssistant.panel.title")}
     >
