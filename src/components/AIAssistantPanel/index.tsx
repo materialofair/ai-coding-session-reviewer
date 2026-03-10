@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight, Plus, History } from "lucide-react";
+import { Bot, X, Trash2, Download, Sparkles, ArrowLeftRight, Plus, History, GraduationCap } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useAiAssistant } from "../../hooks/useAiAssistant";
 import { ChatHistory } from "./ChatHistory";
 import { ChatInput } from "./ChatInput";
 import { ProviderSelector } from "./ProviderSelector";
+import { CoachingHub } from "./CoachingHub";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +34,8 @@ export function AIAssistantPanel() {
     switchAiChatSession,
     deleteAiChatSession,
     setAiAnalysisScope,
+    acpViewMode,
+    setAcpViewMode,
   } = useAppStore((s) => ({
     isAiPanelOpen: s.isAiPanelOpen,
     setAiPanelOpen: s.setAiPanelOpen,
@@ -48,6 +51,8 @@ export function AIAssistantPanel() {
     switchAiChatSession: s.switchAiChatSession,
     deleteAiChatSession: s.deleteAiChatSession,
     setAiAnalysisScope: s.setAiAnalysisScope,
+    acpViewMode: s.acpViewMode,
+    setAcpViewMode: s.setAcpViewMode,
   }));
 
   const { width, isResizing, handleMouseDown } = useResizablePanel({
@@ -106,6 +111,16 @@ export function AIAssistantPanel() {
             </span>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`w-7 h-7 ${acpViewMode === "coaching" ? "bg-primary/10 text-primary" : ""}`}
+              onClick={() => setAcpViewMode(acpViewMode === "coaching" ? "chat" : "coaching")}
+              aria-label={t("aiAssistant.coaching.toggleTooltip")}
+              title={t("aiAssistant.coaching.toggleTooltip")}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+            </Button>
             <ProviderSelector />
             <Button
               variant="ghost"
@@ -122,16 +137,25 @@ export function AIAssistantPanel() {
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-3 h-3 text-muted-foreground" />
           <span className="text-[10px] text-muted-foreground">
-            {isAiStreaming
-              ? t("aiAssistant.status.streaming")
-              : isAiAnalyzing
-                ? t("aiAssistant.status.analyzing")
-                : t("aiAssistant.status.ready")}
+            {acpViewMode === "coaching"
+              ? t("aiAssistant.coaching.title")
+              : isAiStreaming
+                ? t("aiAssistant.status.streaming")
+                : isAiAnalyzing
+                  ? t("aiAssistant.status.analyzing")
+                  : t("aiAssistant.status.ready")}
           </span>
         </div>
+      </div>
 
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <select
+      {acpViewMode === "coaching" ? (
+        <CoachingHub />
+      ) : (
+        <>
+          {/* Chat session controls */}
+          <div className="px-3 flex-shrink-0">
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <select
             className="h-6 flex-1 rounded border border-border bg-background px-2 text-[10px] text-foreground focus:outline-none"
             value={activeAiChatSessionId}
             onChange={(e) => switchAiChatSession(e.target.value)}
@@ -255,35 +279,37 @@ export function AIAssistantPanel() {
         </div>
       </div>
 
-      {/* Chat History — scrollable */}
-      <ChatHistory />
+          {/* Chat History — scrollable */}
+          <ChatHistory />
 
-      {/* Input area */}
-      <div className="px-3 py-2.5 border-t border-border/50 bg-muted/10 flex-shrink-0 space-y-2">
-        <ChatInput onSend={sendMessage} />
-        {aiMessages.length > 0 && (
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-[11px] text-muted-foreground gap-1.5 hover:text-foreground"
-              onClick={exportReport}
-            >
-              <Download className="w-3 h-3" />
-              {t("aiAssistant.export.button")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-[11px] text-muted-foreground gap-1.5 hover:text-destructive"
-              onClick={clearAiMessages}
-            >
-              <Trash2 className="w-3 h-3" />
-              {t("aiAssistant.chat.clear")}
-            </Button>
+          {/* Input area */}
+          <div className="px-3 py-2.5 border-t border-border/50 bg-muted/10 flex-shrink-0 space-y-2">
+            <ChatInput onSend={sendMessage} />
+            {aiMessages.length > 0 && (
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[11px] text-muted-foreground gap-1.5 hover:text-foreground"
+                  onClick={exportReport}
+                >
+                  <Download className="w-3 h-3" />
+                  {t("aiAssistant.export.button")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[11px] text-muted-foreground gap-1.5 hover:text-destructive"
+                  onClick={clearAiMessages}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  {t("aiAssistant.chat.clear")}
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </aside>
   );
 }

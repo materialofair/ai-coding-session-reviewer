@@ -6,7 +6,6 @@ import {
   Activity,
   FileEdit,
   Terminal,
-  SlidersHorizontal,
   Columns,
 } from "lucide-react";
 
@@ -240,20 +239,6 @@ export const Header = ({ analyticsActions, analyticsComputed, updater }: HeaderP
         )}
 
         <div className="flex items-center gap-1 rounded-[18px] border border-border/60 bg-card/72 p-1 shadow-sm">
-          {/* Settings Manager */}
-          <NavButton
-            icon={SlidersHorizontal}
-            label={t("settingsManager.title")}
-            isActive={computed.isSettingsView}
-            onClick={() => {
-              if (computed.isSettingsView) {
-                analyticsActions.switchToMessages();
-              } else {
-                analyticsActions.switchToSettings();
-              }
-            }}
-          />
-
           {/* Settings Dropdown */}
           <SettingDropdown updater={updater} />
         </div>

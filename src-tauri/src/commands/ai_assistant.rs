@@ -812,6 +812,24 @@ fn build_analysis_prompt(analysis_type: &str, mixed: &MixedContext) -> String {
             Do not present tool-call counts or numeric call statistics.\n\
             Be concrete, actionable, and reference evidence from the provided context."
         ),
+        "coaching_extract" => format!("{common_header}{}",
+            "Analyze these AI coding sessions and extract reusable insights as structured data.\n\
+            Return ONLY a JSON array (no markdown fencing, no explanation) with objects:\n\
+            [\n\
+              {{\n\
+                \"category\": \"prompt_pattern\" | \"skill_workflow\" | \"acceptance_criteria\",\n\
+                \"title\": \"short descriptive title\",\n\
+                \"content\": \"detailed markdown explanation with examples\",\n\
+                \"tags\": [\"tag1\", \"tag2\"]\n\
+              }}\n\
+            ]\n\
+            Extract 3-8 insights covering:\n\
+            - Effective prompt patterns found in the sessions\n\
+            - Skill/tool workflow sequences that worked well\n\
+            - Acceptance criteria patterns that led to successful outcomes\n\
+            Be concrete with real examples from the provided context.\n\
+            Do not present tool-call counts or numeric call statistics."
+        ),
         _ => format!("{common_header}Analyze this conversation and provide concise actionable insights in Markdown."),
     }
 }

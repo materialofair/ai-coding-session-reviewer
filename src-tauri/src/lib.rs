@@ -19,6 +19,10 @@ use crate::commands::{
         get_all_mcp_servers, get_all_settings, get_claude_json_config, get_mcp_servers,
         get_settings_by_scope, read_text_file, save_mcp_servers, save_settings, write_text_file,
     },
+    experience_library::{
+        delete_experience_entry, export_experience_templates, list_experience_entries,
+        load_experience_entry, save_experience_entry,
+    },
     feedback::{get_system_info, open_github_issues, send_feedback},
     mcp_presets::{delete_mcp_preset, get_mcp_preset, load_mcp_presets, save_mcp_preset},
     metadata::{
@@ -150,6 +154,12 @@ pub fn run() {
             save_acp_session,
             delete_acp_session,
             append_acp_message,
+            // Experience library commands
+            list_experience_entries,
+            load_experience_entry,
+            save_experience_entry,
+            delete_experience_entry,
+            export_experience_templates,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

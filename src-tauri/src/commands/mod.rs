@@ -1,6 +1,7 @@
 pub mod acp_sessions;
 pub mod ai_assistant;
 pub mod claude_settings;
+pub mod experience_library;
 pub mod feedback;
 pub mod fs_utils;
 pub mod mcp_presets;

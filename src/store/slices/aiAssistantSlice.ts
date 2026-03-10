@@ -40,10 +40,35 @@ export type AiAnalysisType =
   | "repeated"
   | "unresolved"
   | "prompt_skill_optimization"
+  | "coaching_extract"
   | "chat";
 /** Which provider's session data to feed into the AI analysis.
  *  `"auto"` = use whatever session/project is selected in the main app. */
 export type AiDataSourceProvider = "auto" | AiProvider;
+
+export type AcpViewMode = "chat" | "coaching";
+export type CoachingTab = "prompts" | "skills" | "criteria" | "library";
+export type ExperienceCategory = "prompt_pattern" | "skill_workflow" | "acceptance_criteria";
+
+export interface ExperienceEntry {
+  id: string;
+  category: ExperienceCategory;
+  title: string;
+  content: string;
+  tags: string[];
+  sourceSessionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExperienceEntrySummary {
+  id: string;
+  category: ExperienceCategory;
+  title: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface AiChatMessage {
   id: string;
@@ -130,6 +155,10 @@ export interface AiAssistantSliceState {
   aiMessages: AiChatMessage[];
   isAiStreaming: boolean;
   activeRequestId: string | null;
+  acpViewMode: AcpViewMode;
+  coachingTab: CoachingTab;
+  experienceEntries: ExperienceEntrySummary[];
+  isLoadingExperience: boolean;
 }
 
 // ============================================================================
@@ -159,6 +188,11 @@ export interface AiAssistantSliceActions {
   loadAcpSessions: () => Promise<void>;
   saveCurrentAcpSession: () => Promise<void>;
   autoSaveAcpSession: (sessionId: string) => void;
+  setAcpViewMode: (mode: AcpViewMode) => void;
+  setCoachingTab: (tab: CoachingTab) => void;
+  loadExperienceEntries: () => Promise<void>;
+  saveExperienceEntry: (entry: { category: ExperienceCategory; title: string; content: string; tags: string[]; sourceSessionId?: string }) => Promise<void>;
+  deleteExperienceEntry: (id: string) => Promise<void>;
 }
 
 export type AiAssistantSlice = AiAssistantSliceState & AiAssistantSliceActions;
@@ -208,6 +242,10 @@ const initialAiAssistantState: AiAssistantSliceState = {
   aiMessages: [],
   isAiStreaming: false,
   activeRequestId: null,
+  acpViewMode: "chat",
+  coachingTab: "prompts",
+  experienceEntries: [],
+  isLoadingExperience: false,
 };
 
 // ============================================================================
@@ -620,4 +658,44 @@ export const createAiAssistantSlice: StateCreator<
       console.error("Failed to auto-save ACP session:", error);
     }
   }, 500),
+
+  setAcpViewMode: (mode) => set({ acpViewMode: mode }),
+
+  setCoachingTab: (tab) => set({ coachingTab: tab }),
+
+  loadExperienceEntries: async () => {
+    set({ isLoadingExperience: true });
+    try {
+      const entries = await invoke<ExperienceEntrySummary[]>("list_experience_entries");
+      set({ experienceEntries: entries, isLoadingExperience: false });
+    } catch (error) {
+      console.error("Failed to load experience entries:", error);
+      set({ isLoadingExperience: false });
+    }
+  },
+
+  saveExperienceEntry: async (entry) => {
+    try {
+      await invoke("save_experience_entry", {
+        entry: {
+          id: crypto.randomUUID(),
+          ...entry,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      await get().loadExperienceEntries();
+    } catch (error) {
+      console.error("Failed to save experience entry:", error);
+    }
+  },
+
+  deleteExperienceEntry: async (id) => {
+    try {
+      await invoke("delete_experience_entry", { id });
+      await get().loadExperienceEntries();
+    } catch (error) {
+      console.error("Failed to delete experience entry:", error);
+    }
+  },
 });

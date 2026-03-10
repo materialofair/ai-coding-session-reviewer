@@ -478,7 +478,7 @@ function App() {
         />
 
         {/* Main Content */}
-        <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden gap-3 px-3 pb-3">
+        <div className="relative z-10 flex min-h-0 flex-1 overflow-hidden gap-3 p-3">
           {/* Sidebar */}
           <ProjectTree
             projects={projects}
@@ -515,9 +515,8 @@ function App() {
           <main
             id="main-content"
             tabIndex={-1}
-            className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[30px] border border-border/60 bg-background/80 shadow-[0_24px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl"
+            className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/45 via-white/10 to-transparent dark:from-white/6 dark:via-transparent dark:to-transparent" />
             {/* Content Header for non-message views */}
             {(computed.isTokenStatsView ||
               computed.isAnalyticsView ||

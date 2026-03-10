@@ -194,6 +194,10 @@ export interface AppStoreState {
   aiMessages: import("./aiAssistantSlice").AiChatMessage[];
   isAiStreaming: boolean;
   activeRequestId: string | null;
+  acpViewMode: import("./aiAssistantSlice").AcpViewMode;
+  coachingTab: import("./aiAssistantSlice").CoachingTab;
+  experienceEntries: import("./aiAssistantSlice").ExperienceEntrySummary[];
+  isLoadingExperience: boolean;
 }
 
 export interface AppStoreActions {
@@ -359,6 +363,11 @@ export interface AppStoreActions {
   loadAcpSessions: () => Promise<void>;
   saveCurrentAcpSession: () => Promise<void>;
   autoSaveAcpSession: (sessionId: string) => void;
+  setAcpViewMode: (mode: import("./aiAssistantSlice").AcpViewMode) => void;
+  setCoachingTab: (tab: import("./aiAssistantSlice").CoachingTab) => void;
+  loadExperienceEntries: () => Promise<void>;
+  saveExperienceEntry: (entry: { category: import("./aiAssistantSlice").ExperienceCategory; title: string; content: string; tags: string[]; sourceSessionId?: string }) => Promise<void>;
+  deleteExperienceEntry: (id: string) => Promise<void>;
 }
 
 export type FullAppStore = AppStoreState & AppStoreActions;
