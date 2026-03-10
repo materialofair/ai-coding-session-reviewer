@@ -162,5 +162,7 @@
   "aiAssistant.experience.deselectAll": "Deselect all",
   "aiAssistant.experience.exporting": "Exporting...",
   "aiAssistant.experience.claudeMdSnippet": "CLAUDE.md Snippet",
-  "aiAssistant.experience.loadError": "Failed to load content"
+  "aiAssistant.experience.loadError": "Failed to load content",
+  "aiAssistant.experience.aiExtracting": "AI is analyzing the message...",
+  "aiAssistant.experience.extractionFailed": "AI extraction failed. Please fill in manually."
 }

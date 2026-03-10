@@ -162,5 +162,7 @@
   "aiAssistant.experience.deselectAll": "すべて解除",
   "aiAssistant.experience.exporting": "エクスポート中...",
   "aiAssistant.experience.claudeMdSnippet": "CLAUDE.mdスニペット",
-  "aiAssistant.experience.loadError": "内容の読み込みに失敗しました"
+  "aiAssistant.experience.loadError": "内容の読み込みに失敗しました",
+  "aiAssistant.experience.aiExtracting": "AIがメッセージを分析中...",
+  "aiAssistant.experience.extractionFailed": "AI抽出に失敗しました。手動で入力してください。"
 }

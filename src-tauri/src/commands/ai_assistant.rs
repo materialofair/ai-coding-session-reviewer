@@ -1837,6 +1837,426 @@ Ensure ACP adapter is installed and network is stable."
     Err(format!("ACP stream ended unexpectedly: {message}"))
 }
 
+// ============ Insight Extraction (non-streaming ACP) ============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractedInsight {
+    pub title: String,
+    pub category: String,
+    pub tags: Vec<String>,
+    pub content: String,
+}
+
+fn build_extraction_prompt(message_content: &str) -> String {
+    format!(
+        r#"分析以下 AI 助手消息，提取结构化信息。
+请只返回一个 JSON 对象（不要 markdown 代码块，不要多余文字），包含以下字段：
+- "title": 简洁的描述性标题（最多 60 字，用中文）
+- "category": 以下之一 "prompt_pattern", "skill_workflow", "acceptance_criteria"
+- "tags": 包含 2-5 个相关关键词标签的数组（用中文）
+- "content": 对关键洞察或模式的精炼总结（简洁但完整，用中文）
+
+category 选择标准：
+- "prompt_pattern": 可复用的提示词技巧、模板或沟通模式
+- "skill_workflow": 开发工作流、工具使用模式或流程改进
+- "acceptance_criteria": 质量标准、验证规则或完成条件
+
+要分析的消息：
+---
+{message_content}
+---
+
+只返回 JSON 对象。"#
+    )
+}
+
+/// Like `stream_acp_output_once` but collects all text deltas into a buffer
+/// instead of emitting Tauri events. Returns the accumulated text.
+async fn collect_acp_output_once(
+    launcher: &AcpLauncher,
+    prompt: &str,
+    timeout_secs: u64,
+) -> Result<String, String> {
+    trace_backend(&format!(
+        "collect_acp_output_once:start cmd={} args={:?}",
+        launcher.cmd, launcher.args
+    ));
+
+    let mut cmd = Command::new(launcher.cmd.as_str());
+    cmd.args(&launcher.args);
+    for key in &launcher.env_remove {
+        cmd.env_remove(key);
+    }
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn ACP launcher {}: {e}", launcher.cmd))?;
+
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to acquire ACP stdin".to_string())?;
+
+    enum OutputEvent {
+        StdoutLine(String),
+        StderrLine(String),
+        StdoutDone,
+        StderrDone,
+    }
+
+    let (tx, mut rx) = mpsc::unbounded_channel::<OutputEvent>();
+
+    if let Some(stdout) = child.stdout.take() {
+        let tx_out = tx.clone();
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                if tx_out.send(OutputEvent::StdoutLine(line)).is_err() {
+                    return;
+                }
+            }
+            let _ = tx_out.send(OutputEvent::StdoutDone);
+        });
+    } else {
+        let _ = tx.send(OutputEvent::StdoutDone);
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        let tx_err = tx.clone();
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = reader.next_line().await {
+                if tx_err.send(OutputEvent::StderrLine(line)).is_err() {
+                    return;
+                }
+            }
+            let _ = tx_err.send(OutputEvent::StderrDone);
+        });
+    } else {
+        let _ = tx.send(OutputEvent::StderrDone);
+    }
+
+    drop(tx);
+
+    // ACP handshake
+    let init_request_id = 1_u64;
+    let new_session_request_id = 2_u64;
+    let prompt_request_id = 3_u64;
+
+    send_rpc_request(
+        &mut stdin,
+        init_request_id,
+        "initialize",
+        serde_json::json!({
+            "protocolVersion": 1,
+            "clientCapabilities": {}
+        }),
+    )
+    .await
+    .map_err(|e| {
+        format!("ACP handshake failed: {e}")
+    })?;
+
+    enum Phase {
+        WaitingInitialize,
+        WaitingSessionNew,
+        WaitingPromptResult,
+    }
+
+    let mut phase = Phase::WaitingInitialize;
+    let cwd = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.canonicalize().ok())
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .to_string_lossy()
+        .to_string();
+    #[allow(unused_assignments)]
+    let mut session_id = String::new();
+    let mut stdout_done = false;
+    let mut stderr_done = false;
+    let mut stderr_lines: Vec<String> = Vec::new();
+    let mut buffer = String::new();
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+
+    while !(stdout_done && stderr_done) {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            let _ = child.kill().await;
+            return Err("ACP request timed out".to_string());
+        }
+
+        let remaining = deadline.saturating_duration_since(now);
+        let event = match tokio::time::timeout(remaining, rx.recv()).await {
+            Ok(event) => event,
+            Err(_) => {
+                let _ = child.kill().await;
+                return Err("ACP request timed out".to_string());
+            }
+        };
+
+        let Some(event) = event else {
+            break;
+        };
+
+        match event {
+            OutputEvent::StdoutLine(line) => {
+                let parsed: serde_json::Value = match serde_json::from_str(&line) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+
+                // Handle notifications (session/update)
+                if let Some(method) = parsed.get("method").and_then(serde_json::Value::as_str) {
+                    if method == "session/update" {
+                        if let Some(params) = parsed.get("params") {
+                            if let Some(update) = params.get("update") {
+                                if let Some(delta) = extract_update_text(update) {
+                                    buffer.push_str(&delta);
+                                }
+                            }
+                        }
+                    }
+
+                    // Handle agent requests (session/request_permission etc.)
+                    if parsed.get("id").is_some() {
+                        let id = parsed.get("id").cloned().unwrap_or(serde_json::Value::Null);
+                        match method {
+                            "session/request_permission" => {
+                                let option_id = parsed
+                                    .get("params")
+                                    .and_then(|p| p.get("options"))
+                                    .and_then(serde_json::Value::as_array)
+                                    .and_then(|arr| {
+                                        arr.iter()
+                                            .find_map(|opt| {
+                                                if opt
+                                                    .get("kind")
+                                                    .and_then(serde_json::Value::as_str)
+                                                    == Some("reject_once")
+                                                {
+                                                    opt.get("optionId")
+                                                        .and_then(serde_json::Value::as_str)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .or_else(|| {
+                                                arr.first().and_then(|opt| {
+                                                    opt.get("optionId")
+                                                        .and_then(serde_json::Value::as_str)
+                                                })
+                                            })
+                                    });
+
+                                let response = if let Some(option_id) = option_id {
+                                    serde_json::json!({
+                                        "outcome": {
+                                            "outcome": "selected",
+                                            "optionId": option_id
+                                        }
+                                    })
+                                } else {
+                                    serde_json::json!({
+                                        "outcome": { "outcome": "cancelled" }
+                                    })
+                                };
+                                let _ = send_rpc_result(&mut stdin, id, response).await;
+                            }
+                            _ => {
+                                let _ = send_rpc_error(
+                                    &mut stdin,
+                                    id,
+                                    -32601,
+                                    "Method not implemented by this ACP client",
+                                )
+                                .await;
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Handle RPC responses
+                let Some(raw_id) = parsed.get("id") else {
+                    continue;
+                };
+                let Some(id) = parse_rpc_id(raw_id) else {
+                    continue;
+                };
+
+                if parsed.get("error").is_some() {
+                    let message = parsed
+                        .get("error")
+                        .and_then(|e| e.get("message"))
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("Unknown ACP error")
+                        .to_string();
+                    let _ = child.kill().await;
+                    return Err(format!("ACP error: {message}"));
+                }
+
+                let result = parsed
+                    .get("result")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
+
+                match phase {
+                    Phase::WaitingInitialize if id == init_request_id => {
+                        send_rpc_request(
+                            &mut stdin,
+                            new_session_request_id,
+                            "session/new",
+                            serde_json::json!({
+                                "cwd": cwd,
+                                "mcpServers": []
+                            }),
+                        )
+                        .await?;
+                        phase = Phase::WaitingSessionNew;
+                    }
+                    Phase::WaitingSessionNew if id == new_session_request_id => {
+                        session_id = result
+                            .get("sessionId")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        if session_id.is_empty() {
+                            let _ = child.kill().await;
+                            return Err(
+                                "ACP session/new returned empty sessionId".to_string()
+                            );
+                        }
+                        send_rpc_request(
+                            &mut stdin,
+                            prompt_request_id,
+                            "session/prompt",
+                            serde_json::json!({
+                                "sessionId": session_id,
+                                "prompt": [
+                                    { "type": "text", "text": prompt }
+                                ]
+                            }),
+                        )
+                        .await?;
+                        phase = Phase::WaitingPromptResult;
+                    }
+                    Phase::WaitingPromptResult if id == prompt_request_id => {
+                        let _ = child.kill().await;
+                        return Ok(buffer);
+                    }
+                    _ => {}
+                }
+            }
+            OutputEvent::StderrLine(line) => {
+                if stderr_lines.len() >= 50 {
+                    stderr_lines.remove(0);
+                }
+                stderr_lines.push(line);
+            }
+            OutputEvent::StdoutDone => {
+                stdout_done = true;
+            }
+            OutputEvent::StderrDone => {
+                stderr_done = true;
+            }
+        }
+    }
+
+    if !buffer.is_empty() {
+        return Ok(buffer);
+    }
+
+    let stderr_tail = if stderr_lines.is_empty() {
+        "ACP process exited before completing".to_string()
+    } else {
+        stderr_lines.join("\n")
+    };
+    Err(format!("ACP collect ended unexpectedly: {stderr_tail}"))
+}
+
+/// Retry wrapper for `collect_acp_output_once`, matching `stream_acp_output` pattern.
+async fn collect_acp_output(
+    launcher: &AcpLauncher,
+    prompt: &str,
+    timeout_secs: u64,
+) -> Result<String, String> {
+    const MAX_ATTEMPTS: usize = 2;
+    let mut last_error = String::new();
+
+    for attempt in 1..=MAX_ATTEMPTS {
+        trace_backend(&format!(
+            "collect_acp_output:attempt attempt={attempt}/{MAX_ATTEMPTS}"
+        ));
+        match collect_acp_output_once(launcher, prompt, timeout_secs).await {
+            Ok(output) => return Ok(output),
+            Err(error) => {
+                last_error = error.clone();
+                if attempt < MAX_ATTEMPTS && should_retry_acp_startup(&error) {
+                    trace_backend(&format!(
+                        "collect_acp_output:retrying after_error={error}"
+                    ));
+                    tokio::time::sleep(Duration::from_millis(350)).await;
+                    continue;
+                }
+                return Err(error);
+            }
+        }
+    }
+
+    Err(last_error)
+}
+
+/// Extract structured insight from a message using the ACP protocol.
+#[tauri::command]
+pub async fn extract_insight(
+    provider: String,
+    content: String,
+) -> Result<ExtractedInsight, String> {
+    let _permit = get_cli_semaphore()
+        .acquire()
+        .await
+        .map_err(|e| format!("Rate limit error: {e}"))?;
+
+    let cli_exe = get_cli_executable(&provider);
+    let launcher = get_acp_launcher(&cli_exe)
+        .ok_or_else(|| format!("No ACP launcher available for provider: {provider}"))?;
+
+    let prompt = build_extraction_prompt(&content);
+    let raw_output = collect_acp_output(&launcher, &prompt, 60).await?;
+
+    // Try to parse the raw output as JSON
+    if let Ok(insight) = serde_json::from_str::<ExtractedInsight>(&raw_output) {
+        return Ok(insight);
+    }
+
+    // Try to extract a JSON block from the response
+    if let Some(start) = raw_output.find('{') {
+        if let Some(end) = raw_output.rfind('}') {
+            let json_str = &raw_output[start..=end];
+            if let Ok(insight) = serde_json::from_str::<ExtractedInsight>(json_str) {
+                return Ok(insight);
+            }
+        }
+    }
+
+    // Fallback: return raw output as content
+    trace_backend(&format!(
+        "extract_insight:json_parse_failed raw_len={}",
+        raw_output.len()
+    ));
+    Ok(ExtractedInsight {
+        title: String::new(),
+        category: "prompt_pattern".to_string(),
+        tags: Vec::new(),
+        content: raw_output,
+    })
+}
+
 async fn stream_legacy_cli_output(
     app_handle: &AppHandle,
     cli_exe: &str,

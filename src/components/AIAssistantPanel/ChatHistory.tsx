@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, User, Loader2, Bookmark } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../../store/useAppStore";
 import { Markdown } from "../common/Markdown";
 import { SaveInsightDialog } from "./CoachingHub/SaveInsightDialog";
 import type { AiChatMessage } from "../../store/slices/aiAssistantSlice";
+
+interface ExtractedInsight {
+  title: string;
+  category: string;
+  tags: string[];
+  content: string;
+}
 
 export function ChatHistory() {
   const { t } = useTranslation();
@@ -12,6 +20,9 @@ export function ChatHistory() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveContent, setSaveContent] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedInsight, setExtractedInsight] = useState<ExtractedInsight | null>(null);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
 
   useEffect(() => {
     const last = aiMessages[aiMessages.length - 1];
@@ -25,9 +36,25 @@ export function ChatHistory() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages]);
 
-  const handleBookmark = (content: string) => {
+  const handleBookmark = async (content: string) => {
     setSaveContent(content);
+    setExtractedInsight(null);
+    setExtractionError(null);
+    setIsExtracting(true);
     setSaveDialogOpen(true);
+
+    try {
+      const provider = useAppStore.getState().selectedAiProvider;
+      const result = await invoke<ExtractedInsight>("extract_insight", {
+        provider,
+        content,
+      });
+      setExtractedInsight(result);
+    } catch (error) {
+      setExtractionError(String(error));
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   if (aiMessages.length === 0) {
@@ -53,6 +80,9 @@ export function ChatHistory() {
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
         defaultContent={saveContent}
+        isExtracting={isExtracting}
+        extractedInsight={extractedInsight}
+        extractionError={extractionError}
       />
     </div>
   );

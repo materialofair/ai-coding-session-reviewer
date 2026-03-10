@@ -13,7 +13,7 @@ use crate::commands::{
     },
     ai_assistant::{
         analyze_session, chat_with_ai, detect_cli, detect_unresolved_issues, export_ai_report,
-        get_provider_session_paths,
+        extract_insight, get_provider_session_paths,
     },
     claude_settings::{
         get_all_mcp_servers, get_all_settings, get_claude_json_config, get_mcp_servers,
@@ -148,6 +148,7 @@ pub fn run() {
             chat_with_ai,
             detect_unresolved_issues,
             export_ai_report,
+            extract_insight,
             // ACP session commands
             list_acp_sessions,
             load_acp_session,

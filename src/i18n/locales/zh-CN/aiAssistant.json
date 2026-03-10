@@ -162,5 +162,7 @@
   "aiAssistant.experience.deselectAll": "取消全选",
   "aiAssistant.experience.exporting": "导出中...",
   "aiAssistant.experience.claudeMdSnippet": "CLAUDE.md 片段",
-  "aiAssistant.experience.loadError": "加载内容失败"
+  "aiAssistant.experience.loadError": "加载内容失败",
+  "aiAssistant.experience.aiExtracting": "AI 正在分析消息...",
+  "aiAssistant.experience.extractionFailed": "AI 提取失败，请手动填写。"
 }

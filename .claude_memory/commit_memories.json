@@ -1273,5 +1273,67 @@
       "language": "javascript",
       "total_files": 0
     }
+  },
+  {
+    "timestamp": "2026-03-10T17:49:12.087480",
+    "type": "claude_commit",
+    "commit_message": "Claude git commit",
+    "analysis": {
+      "changed_files": [
+        ".claude_memory/commit_memories.json",
+        ".claude_memory/project_memory.db/cache/5053f3838d73e8a043274ab7a837063e.pkl",
+        ".claude_memory/project_memory.db/project_memory.db",
+        "docs/plans/2026-03-10-acp-panel-glassmorphism-implementation.md",
+        "prompt-analysis-report.md",
+        "src-tauri/src/commands/ai_assistant.rs",
+        "src-tauri/src/commands/experience_library.rs",
+        "src-tauri/src/commands/mod.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/models.rs",
+        "src-tauri/src/models/experience_entry.rs",
+        "src/App.tsx",
+        "src/components/AIAssistantPanel/ChatHistory.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/AcceptanceCriteriaTab.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/ExperienceEntryCard.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/ExperienceLibrary.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/PromptCoachingTab.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/SaveInsightDialog.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/SkillGuideTab.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/TemplateExportDialog.tsx",
+        "src/components/AIAssistantPanel/CoachingHub/index.tsx",
+        "src/components/AIAssistantPanel/index.tsx",
+        "src/i18n/locales/en/aiAssistant.json",
+        "src/i18n/locales/ja/aiAssistant.json",
+        "src/i18n/locales/ko/aiAssistant.json",
+        "src/i18n/locales/zh-CN/aiAssistant.json",
+        "src/i18n/locales/zh-TW/aiAssistant.json",
+        "src/layouts/Header/Header.tsx",
+        "src/store/slices/aiAssistantSlice.ts",
+        "src/store/slices/types.ts"
+      ],
+      "change_types": {
+        "feature": 28,
+        "bugfix": 0,
+        "refactor": 0,
+        "docs": 2,
+        "test": 0,
+        "config": 0
+      },
+      "commit_intent": "general",
+      "potential_impact": "high",
+      "risk_assessment": {
+        "risk_score": 0.7,
+        "risk_level": "medium",
+        "risk_factors": [
+          "large_changeset",
+          "critical_files"
+        ]
+      }
+    },
+    "project_state": {
+      "framework": "react",
+      "language": "javascript",
+      "total_files": 20
+    }
   }
 ]

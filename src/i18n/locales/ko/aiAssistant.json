@@ -162,5 +162,7 @@
   "aiAssistant.experience.deselectAll": "전체 해제",
   "aiAssistant.experience.exporting": "내보내는 중...",
   "aiAssistant.experience.claudeMdSnippet": "CLAUDE.md 스니펫",
-  "aiAssistant.experience.loadError": "내용을 불러오지 못했습니다"
+  "aiAssistant.experience.loadError": "내용을 불러오지 못했습니다",
+  "aiAssistant.experience.aiExtracting": "AI가 메시지를 분석 중...",
+  "aiAssistant.experience.extractionFailed": "AI 추출에 실패했습니다. 수동으로 입력해주세요."
 }
